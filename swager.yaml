@@ -1,0 +1,22 @@
+openapi: 3.0.0
+info: 
+  title: API de ejemplo
+  version: 1.0.0
+  description:  Una API que sirve como ejemplo
+servers:
+  - url: http://localhost:3000
+paths:
+  /saludo:
+    get:
+      summary: Devuelve Saludo
+      responses:
+        '200':
+          description: OK
+          content:
+            aplication/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: Hola Mundo!
