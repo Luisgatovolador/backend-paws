@@ -1,0 +1,18 @@
+<p><a href="/usuarios/nuevo">Registrar nuevo usuario</a></p>
+
+
+<table>
+<thead>
+<tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th></tr>
+</thead>
+<tbody>
+<% usuarios.forEach(u => { %>
+<tr>
+<td><%= u.id %></td>
+<td><%= u.nombre %></td>
+<td><%= u.email %></td>
+<td><%= u.rol %></td>
+</tr>
+<% }) %>
+</tbody>
+</table>
