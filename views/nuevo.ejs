@@ -1,0 +1,24 @@
+
+
+
+<h2>Registrar Usuario</h2>
+
+
+<% if (error) { %>
+<p class="error"><%= error %></p>
+<% } %>
+
+
+<form method="post" action="/usuarios/nuevo">
+<label>Nombre:<br/><input type="text" name="nombre" value="<%= form.nombre || '' %>"></label><br/><br/>
+<label>Email:<br/><input type="email" name="email" value="<%= form.email || '' %>"></label><br/><br/>
+<label>Password:<br/><input type="password" name="password"></label><br/><br/>
+<label>Rol:<br/>
+<select name="rol">
+<option value="admin" <%= (form.rol==='admin')? 'selected' : '' %>>admin</option>
+<option value="editor" <%= (form.rol==='editor')? 'selected' : '' %>>editor</option>
+<option value="lector" <%= (form.rol==='lector')? 'selected' : '' %>>lector</option>
+</select>
+</label><br/><br/>
+<button type="submit">Crear</button>
+</form>
