@@ -33,6 +33,23 @@ const res = await pool.query(
 );
 return res.rows[0];
 }
+
+
+static async update(id, { nombre, email, rol }) {
+    const res = await pool.query(
+      'UPDATE usuarios SET nombre=$1, email=$2, rol=$3 WHERE id=$4 RETURNING id, nombre, email, rol',
+      [nombre, email, rol, id]
+    );
+    return res.rows[0];
+  }
+
+  static async delete(id) {
+    const res = await pool.query(
+      'DELETE FROM usuarios WHERE id=$1 RETURNING id',
+      [id]
+    );
+    return res.rows[0];
+  }
 }
 
 
