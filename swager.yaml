@@ -1,8 +1,8 @@
 openapi: 3.0.0
 info:
   title: API de Usuarios
-  version: 1.0.0
-  description: API para listar y registrar usuarios
+  version: 1.1.0
+  description: API para listar, registrar, actualizar y eliminar usuarios con validaciones estrictas
 servers:
   - url: http://localhost:3000
 paths:
@@ -17,38 +17,25 @@ paths:
               schema:
                 type: array
                 items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    nombre:
-                      type: string
-                    email:
-                      type: string
-                    rol:
-                      type: string
+                  $ref: '#/components/schemas/Usuario'
+        '500':
+          description: Error de conexión a base de datos
   /usuarios/nuevo:
     post:
       summary: Crea un nuevo usuario
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
-              type: object
-              properties:
-                nombre:
-                  type: string
-                email:
-                  type: string
-                password:
-                  type: string
-                rol:
-                  type: string
-                  enum: [admin, editor, lector]
+              $ref: '#/components/schemas/NuevoUsuario'
       responses:
-        '302':
-          description: Redirige a /usuarios después de crear
+        '201':
+          description: Usuario creado exitosamente
+        '400':
+          description: Error de validación (email inválido, contraseña insegura, rol no permitido)
+        '409':
+          description: Email ya registrado
   /usuarios/{id}:
     put:
       summary: Actualiza un usuario por ID
@@ -62,20 +49,14 @@ paths:
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
-              type: object
-              properties:
-                nombre:
-                  type: string
-                email:
-                  type: string
-                rol:
-                  type: string
-                  enum: [admin, editor, lector]
+              $ref: '#/components/schemas/NuevoUsuario'
       responses:
         '200':
           description: Usuario actualizado
+        '400':
+          description: Datos inválidos
         '404':
           description: Usuario no encontrado
     delete:
@@ -86,10 +67,49 @@ paths:
           schema:
             type: integer
           required: true
-          description: ID del usuario
       responses:
         '200':
           description: Usuario eliminado
         '404':
           description: Usuario no encontrado
-  
+        '400':
+          description: No se puede eliminar el último administrador
+components:
+  schemas:
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+        nombre:
+          type: string
+        email:
+          type: string
+        rol:
+          type: string
+          enum: [admin, editor, lector]
+    NuevoUsuario:
+      type: object
+      required: [nombre, email, password, rol]
+      properties:
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 100
+          pattern: "^(?!\\s*$)(?![Nn][Uu][Ll][Ll]$)(?!string$)(?!String$)(?!STRING$)[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$"
+          description: >
+            Nombre del usuario. No puede estar vacío, contener solo espacios,
+            ni valores inválidos como "null", "NULL", "NuLL", "string", "STRING".
+            Solo se permiten letras y espacios.
+        email:
+          type: string
+          format: email
+          pattern: "^[a-zA-Z0-9._%+-]+@gmail\\.com$"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 255
+          pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).+$"
+        rol:
+          type: string
+          enum: [admin, editor, lector]
