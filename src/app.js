@@ -6,6 +6,7 @@ const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 
 const usuariosRouter = require('./routes/usuarios');
+const authRouter = require('./routes/auth');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use(bodyParser.json());
 
 // Rutas
 app.use('/usuarios', usuariosRouter);
+app.use('/api/v1',authRouter);
 
 // Swagger
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger/swagger.yaml'));
