@@ -92,4 +92,110 @@ paths:
           description: Usuario eliminado
         '404':
           description: Usuario no encontrado
+  # --- Rutas de Autenticación y Seguridad ---
+  /api/v1/forgot-password:
+    post:
+      summary: Enviar enlace para restablecer contraseña
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Correo de restablecimiento enviado
+        '404':
+          description: Usuario no encontrado
+ 
+  /api/v1/reset-password/{token}:
+    post:
+      summary: Restablecer la contraseña con un token
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+          description: Token de restablecimiento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newPassword:
+                  type: string
+      responses:
+        '200':
+          description: Contraseña actualizada
+        '400':
+          description: Token inválido o expirado
+ 
+  /api/v1/login:
+    post:
+      summary: Iniciar sesión y solicitar código de verificación 2FA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Código de verificación enviado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  needsVerification:
+                    type: boolean
+                  userId:
+                    type: integer
+        '401':
+          description: Credenciales inválidas
+ 
+  /api/v1/verify-2fa:
+    post:
+      summary: Verificar el código 2FA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                code:
+                  type: string
+                  description: Código de verificación de 6 dígitos
+      responses:
+        '200':
+          description: Inicio de sesión exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  message:
+                    type: string
+        '401':
+          description: Código de verificación inválido o expirado
   
