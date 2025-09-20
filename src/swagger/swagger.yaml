@@ -47,8 +47,8 @@ paths:
                   type: string
                   enum: [admin, editor, lector]
       responses:
-        '302':
-          description: Redirige a /usuarios después de crear
+        '201':
+          description: Usuario creado
   /usuarios/{id}:
     put:
       summary: Actualiza un usuario por ID
@@ -92,7 +92,6 @@ paths:
           description: Usuario eliminado
         '404':
           description: Usuario no encontrado
-  # --- Rutas de Autenticación y Seguridad ---
   /api/v1/forgot-password:
     post:
       summary: Enviar enlace para restablecer contraseña
@@ -111,7 +110,6 @@ paths:
           description: Correo de restablecimiento enviado
         '404':
           description: Usuario no encontrado
- 
   /api/v1/reset-password/{token}:
     post:
       summary: Restablecer la contraseña con un token
@@ -136,10 +134,9 @@ paths:
           description: Contraseña actualizada
         '400':
           description: Token inválido o expirado
- 
   /api/v1/login:
     post:
-      summary: Iniciar sesión y solicitar código de verificación 2FA
+      summary: Iniciar sesión con 2FA offline
       requestBody:
         required: true
         content:
@@ -152,23 +149,23 @@ paths:
                   format: email
                 password:
                   type: string
+                token:
+                  type: string
+                  description: Código TOTP de 6 dígitos de Google Authenticator
       responses:
         '200':
-          description: Código de verificación enviado
+          description: Inicio de sesión exitoso
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  token:
+                    type: string
                   message:
                     type: string
-                  needsVerification:
-                    type: boolean
-                  userId:
-                    type: integer
         '401':
-          description: Credenciales inválidas
- 
+          description: Credenciales inválidas o código 2FA incorrecto
   /api/v1/verify-2fa:
     post:
       summary: Verificar el código 2FA
@@ -198,4 +195,3 @@ paths:
                     type: string
         '401':
           description: Código de verificación inválido o expirado
-  

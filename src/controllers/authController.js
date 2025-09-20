@@ -73,10 +73,10 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
+const speakeasy = require('speakeasy');
 
-// --- Función de Login (con 2FA) ---
 exports.login = async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, token } = req.body; // token = código TOTP de la app 2FA
 
     try {
         const result = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
@@ -86,23 +86,27 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
 
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const expires = new Date(Date.now() + 600000); // 10 minutos
-        
-        await db.query('UPDATE usuarios SET verification_code = $1, verification_code_expires = $2 WHERE id = $3', 
-            [verificationCode, expires, user.id]);
+        // --- Verificación 2FA ---
+        if (!token) {
+            return res.status(400).json({ message: 'Ingresa el código de la app 2FA.' });
+        }
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: 'Código de verificación de inicio de sesión',
-            html: `<p>Tu código de verificación es: <strong>${verificationCode}</strong></p><p>Este código expirará en 10 minutos.</p>`,
-        };
-        await transporter.sendMail(mailOptions);
+        const isValid = speakeasy.totp.verify({
+            secret: user.twofa_secret,   // secreto guardado en la DB
+            encoding: 'base32',
+            token: token
+        });
 
-        res.status(200).json({ message: 'Se ha enviado un código de verificación a tu correo.', needsVerification: true, userId: user.id });
+        if (!isValid) {
+            return res.status(401).json({ message: 'Código 2FA incorrecto' });
+        }
+
+        // --- Generar JWT ---
+        const jwtToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.status(200).json({ token: jwtToken, message: 'Inicio de sesión exitoso.' });
+
     } catch (error) {
-        console.error('Error en login:', error);
+        console.error('Error en login 2FA:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };

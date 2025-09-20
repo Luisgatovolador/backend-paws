@@ -42,32 +42,40 @@ const usuarioSchema = Joi.object({
 });
 
 // Crear usuario
+
+
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 const bcrypt = require('bcrypt');
+
 
 const crearUsuario = async (req, res) => {
   try {
-    const { error } = usuarioSchema.validate(req.body, { abortEarly: false });
-    if (error) {
-      const errores = error.details.map(det => det.message);
-      return res.status(400).json({ message: 'No se pudo insertar el usuario.', errores });
-    }
-
     const { nombre, email, password, rol } = req.body;
 
-    // Hashear la contraseña
+    // 1️⃣ Encriptar contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 2️⃣ Generar secreto único para 2FA
+    const secret = speakeasy.generateSecret({ length: 20 });
+    const secretBase32 = secret.base32; // <- guardas esto en la DB
+
+    // 3️⃣ Guardar usuario en la base de datos, incluyendo el secreto 2FA
     const result = await pool.query(
-      'INSERT INTO usuarios (nombre, email, password, rol) VALUES ($1, $2, $3, $4) RETURNING id, nombre, email, rol',
-      [nombre, email, hashedPassword, rol] // <- aquí usamos el hash
+      'INSERT INTO usuarios (nombre, email, password, rol, twofa_secret) VALUES ($1, $2, $3, $4, $5) RETURNING id, nombre, email, rol',
+      [nombre, email, hashedPassword, rol, secretBase32]
     );
 
-    res.status(201).json({ message: 'Usuario creado con éxito.', usuario: result.rows[0] });
+    // 4️⃣ Opcional: generar QR para mostrar al usuario
+    const qrUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+    res.status(201).json({ 
+      mensaje: 'Usuario creado con éxito.', 
+      usuario: result.rows[0], 
+      qrUrl // el usuario puede escanear este QR con su app 2FA
+    });
   } catch (err) {
-    if (err.code === '23505') {
-      return res.status(400).json({ message: 'El correo electrónico ya está registrado.' });
-    }
-    res.status(500).json({ message: 'Error al crear el usuario.', error: err.message });
+    res.status(500).json({ message: 'Error al crear usuario', error: err.message });
   }
 };
 
