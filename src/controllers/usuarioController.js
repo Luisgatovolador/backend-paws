@@ -42,6 +42,8 @@ const usuarioSchema = Joi.object({
 });
 
 // Crear usuario
+const bcrypt = require('bcrypt');
+
 const crearUsuario = async (req, res) => {
   try {
     const { error } = usuarioSchema.validate(req.body, { abortEarly: false });
@@ -52,9 +54,12 @@ const crearUsuario = async (req, res) => {
 
     const { nombre, email, password, rol } = req.body;
 
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const result = await pool.query(
-      'INSERT INTO usuarios (nombre, email, password, rol) VALUES ($1, $2, $3, $4) RETURNING *',
-      [nombre, email, password, rol]
+      'INSERT INTO usuarios (nombre, email, password, rol) VALUES ($1, $2, $3, $4) RETURNING id, nombre, email, rol',
+      [nombre, email, hashedPassword, rol] // <- aquí usamos el hash
     );
 
     res.status(201).json({ message: 'Usuario creado con éxito.', usuario: result.rows[0] });
