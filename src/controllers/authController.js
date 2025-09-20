@@ -1,25 +1,30 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
-const db = require('../db/index'); // Asegúrate de que esta sea la ruta correcta a tu conexión de BD
+const db = require('../db/index'); 
+const authValidator = require('../validators/authValidators'); // Ruta del validador corregida
 
 // Configuración de Nodemailer usando las variables de entorno
-//modificar TLS para prod
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_APP_PASS,
     },
-    tls:{
+    tls: {
         rejectUnauthorized: false
     }
 });
 
 // --- Función de Recuperación de Cuenta (Solicitud) ---
 exports.forgotPassword = async (req, res) => {
+    // Validar con Joi
+    const { error } = authValidator.forgotPasswordSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
+    }
+    
     const { email } = req.body;
-
     try {
         const result = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
         const user = result.rows[0];
@@ -51,17 +56,23 @@ exports.forgotPassword = async (req, res) => {
 
 // --- Función de Recuperación de Cuenta (Actualización) ---
 exports.resetPassword = async (req, res) => {
+    // Validar con Joi
+    const { error } = authValidator.resetPasswordSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
+    }
+    
     const { token } = req.params;
     const { newPassword } = req.body;
 
     try {
         const result = await db.query('SELECT * FROM usuarios WHERE reset_password_token = $1 AND reset_password_expires > NOW()', [token]);
-        const user = result.rows[0];
-
-        if (!user) {
+        
+        if (result.rowCount === 0) {
             return res.status(400).json({ message: 'El token es inválido o ha expirado.' });
         }
-
+        
+        const user = result.rows[0];
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
         await db.query('UPDATE usuarios SET password = $1, reset_password_token = NULL, reset_password_expires = NULL WHERE id = $2', 
@@ -76,6 +87,12 @@ exports.resetPassword = async (req, res) => {
 const speakeasy = require('speakeasy');
 
 exports.login = async (req, res) => {
+    // Validar con Joi
+    const { error } = authValidator.loginSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
+    }
+
     const { email, password, token } = req.body; // token = código TOTP de la app 2FA
 
     try {
@@ -113,16 +130,23 @@ exports.login = async (req, res) => {
 
 // --- Función de Verificación del Código 2FA ---
 exports.verifyCode = async (req, res) => {
+    // Validar con Joi
+    const { error } = authValidator.verifyCodeSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
+    }
+
     const { userId, code } = req.body;
 
     try {
         const result = await db.query('SELECT * FROM usuarios WHERE id = $1 AND verification_code = $2 AND verification_code_expires > NOW()', [userId, code]);
-        const user = result.rows[0];
-
-        if (!user) {
+        
+        if (result.rowCount === 0) {
             return res.status(401).json({ message: 'Código de verificación inválido o expirado.' });
         }
 
+        const user = result.rows[0];
+        
         await db.query('UPDATE usuarios SET verification_code = NULL, verification_code_expires = NULL WHERE id = $1', [userId]);
 
         const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
