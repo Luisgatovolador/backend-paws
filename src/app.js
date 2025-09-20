@@ -6,6 +6,7 @@ const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 
 const usuariosRouter = require('./routes/usuarios');
+const authRouter = require('./routes/auth');
 
 const app = express();
 
@@ -19,15 +20,21 @@ app.set('layout', 'layout');
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// Ruta de testeo inicial
+// app.use('/',(req,res)=>{
+//     console.log('Llamada al EndPoint base');
+//     res.send('El servidor esta funcionando correctamente');
+// });
+
 // Rutas
 app.use('/usuarios', usuariosRouter);
+app.use('/api/v1',authRouter);
 
 // Swagger
-const swaggerDocument = YAML.load(path.join(__dirname, 'swager.yaml'));
+const swaggerDocument = YAML.load(path.join(__dirname, 'swagger/swagger.yaml'));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Redirigir /
 app.get('/', (req, res) => res.redirect('/usuarios'));
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Servidor escuchando en http://localhost:${port}`));
+module.exports = app;
