@@ -6,6 +6,8 @@ info:
 servers:
   - url: http://localhost:3000
 paths:
+
+
   /usuarios:
     get:
       summary: Lista todos los usuarios
@@ -27,13 +29,15 @@ paths:
                       type: string
                     rol:
                       type: string
+
+
   /usuarios/nuevo:
     post:
       summary: Crea un nuevo usuario
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+         application/json:
             schema:
               type: object
               properties:
@@ -49,6 +53,8 @@ paths:
       responses:
         '201':
           description: Usuario creado
+
+
   /usuarios/{id}:
     put:
       summary: Actualiza un usuario por ID
@@ -62,7 +68,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               type: object
               properties:
@@ -78,6 +84,8 @@ paths:
           description: Usuario actualizado
         '404':
           description: Usuario no encontrado
+
+          
     delete:
       summary: Elimina un usuario por ID
       parameters:
@@ -92,6 +100,8 @@ paths:
           description: Usuario eliminado
         '404':
           description: Usuario no encontrado
+
+
   /api/v1/forgot-password:
     post:
       summary: Enviar enlace para restablecer contraseña
@@ -110,6 +120,8 @@ paths:
           description: Correo de restablecimiento enviado
         '404':
           description: Usuario no encontrado
+
+
   /api/v1/reset-password/{token}:
     post:
       summary: Restablecer la contraseña con un token
@@ -134,6 +146,8 @@ paths:
           description: Contraseña actualizada
         '400':
           description: Token inválido o expirado
+
+
   /api/v1/login:
     post:
       summary: Iniciar sesión con 2FA offline
@@ -166,6 +180,8 @@ paths:
                     type: string
         '401':
           description: Credenciales inválidas o código 2FA incorrecto
+  
+  
   /api/v1/verify-2fa:
     post:
       summary: Verificar el código 2FA
