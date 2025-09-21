@@ -53,7 +53,7 @@ const crearUsuario = async (req, res) => {
   try {
     const { nombre, email, password, rol } = req.body;
 
-    // 1️⃣ Encriptar contraseña
+    // 1Encriptar contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 2️⃣ Generar secreto único para 2FA
