@@ -9,6 +9,16 @@ const usuariosRouter = require('./routes/usuarios');
 const authRouter = require('./routes/auth');
 
 const app = express();
+app.use(express.json());
+
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({
+      message: 'El cuerpo de la petición no tiene un formato JSON válido.'
+    });
+  }
+  next();
+});
 
 // Vistas
 app.set('view engine', 'ejs');

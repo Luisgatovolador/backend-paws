@@ -1,25 +1,30 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
-const db = require('../db/index'); // Asegúrate de que esta sea la ruta correcta a tu conexión de BD
+const db = require('../db/index'); 
+const authValidator = require('../validators/authValidators'); // Ruta del validador corregida
 
 // Configuración de Nodemailer usando las variables de entorno
-//modificar TLS para prod
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_APP_PASS,
     },
-    tls:{
+    tls: {
         rejectUnauthorized: false
     }
 });
 
 // --- Función de Recuperación de Cuenta (Solicitud) ---
 exports.forgotPassword = async (req, res) => {
+    // Validar con Joi
+    const { error } = authValidator.forgotPasswordSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
+    }
+    
     const { email } = req.body;
-
     try {
         const result = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
         const user = result.rows[0];
@@ -51,17 +56,23 @@ exports.forgotPassword = async (req, res) => {
 
 // --- Función de Recuperación de Cuenta (Actualización) ---
 exports.resetPassword = async (req, res) => {
+    // Validar con Joi
+    const { error } = authValidator.resetPasswordSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
+    }
+    
     const { token } = req.params;
     const { newPassword } = req.body;
 
     try {
         const result = await db.query('SELECT * FROM usuarios WHERE reset_password_token = $1 AND reset_password_expires > NOW()', [token]);
-        const user = result.rows[0];
-
-        if (!user) {
+        
+        if (result.rowCount === 0) {
             return res.status(400).json({ message: 'El token es inválido o ha expirado.' });
         }
-
+        
+        const user = result.rows[0];
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
         await db.query('UPDATE usuarios SET password = $1, reset_password_token = NULL, reset_password_expires = NULL WHERE id = $2', 
@@ -73,10 +84,13 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
-const speakeasy = require('speakeasy');
 
+
+//login 
+const speakeasy = require('speakeasy');
+// --- Función de Login (con 2FA) ---
 exports.login = async (req, res) => {
-    const { email, password, token } = req.body; // token = código TOTP de la app 2FA
+    const { email, password } = req.body;
 
     try {
         const result = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
@@ -86,47 +100,71 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
 
-        // --- Verificación 2FA ---
-        if (!token) {
-            return res.status(400).json({ message: 'Ingresa el código de la app 2FA.' });
-        }
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expires = new Date(Date.now() + 600000); // 10 minutos
+        
+        await db.query('UPDATE usuarios SET verification_code = $1, verification_code_expires = $2 WHERE id = $3', 
+            [verificationCode, expires, user.id]);
 
-        const isValid = speakeasy.totp.verify({
-            secret: user.twofa_secret,   // secreto guardado en la DB
-            encoding: 'base32',
-            token: token
-        });
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: 'Código de verificación de inicio de sesión',
+            html: `<p>Tu código de verificación es: <strong>${verificationCode}</strong></p><p>Este código expirará en 10 minutos.</p>`,
+        };
+        await transporter.sendMail(mailOptions);
 
-        if (!isValid) {
-            return res.status(401).json({ message: 'Código 2FA incorrecto' });
-        }
-
-        // --- Generar JWT ---
-        const jwtToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.status(200).json({ token: jwtToken, message: 'Inicio de sesión exitoso.' });
-
+        res.status(200).json({ message: 'Se ha enviado un código de verificación a tu correo.', needsVerification: true, userId: user.id });
     } catch (error) {
-        console.error('Error en login 2FA:', error);
+        console.error('Error en login:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
 
+
 // --- Función de Verificación del Código 2FA ---
 exports.verifyCode = async (req, res) => {
+    const { error } = authValidator.verifyCodeSchema.validate(req.body);
+    if (error) return res.status(400).json({ message: error.details[0].message });
+
     const { userId, code } = req.body;
 
     try {
-        const result = await db.query('SELECT * FROM usuarios WHERE id = $1 AND verification_code = $2 AND verification_code_expires > NOW()', [userId, code]);
+        const result = await db.query('SELECT * FROM usuarios WHERE id = $1', [userId]);
         const user = result.rows[0];
 
-        if (!user) {
-            return res.status(401).json({ message: 'Código de verificación inválido o expirado.' });
+        if (!user) return res.status(400).json({ message: 'Usuario no encontrado.' });
+
+        const now = new Date();
+
+        // Verificar código de correo
+        const codeIsValid =
+            user.verification_code === code && user.verification_code_expires > now;
+
+        // Verificar TOTP
+        const totpIsValid = user.twofa_secret
+            ? speakeasy.totp.verify({
+                  secret: user.twofa_secret,
+                  encoding: 'base32',
+                  token: code,
+                  window: 1
+              })
+            : false;
+
+        if (!codeIsValid && !totpIsValid) {
+            return res.status(401).json({ message: 'Código inválido o expirado.' });
         }
 
-        await db.query('UPDATE usuarios SET verification_code = NULL, verification_code_expires = NULL WHERE id = $1', [userId]);
+        // Generar JWT
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-        const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.status(200).json({ token, message: 'Inicio de sesión exitoso.' });
+        // Limpiar el código de correo si se usó
+        if (codeIsValid) {
+            await db.query('UPDATE usuarios SET verification_code = NULL, verification_code_expires = NULL WHERE id = $1', [userId]);
+        }
+
+        res.status(200).json({ token, message: 'Inicio de sesión exitoso con 2FA.' });
+
     } catch (error) {
         console.error('Error en verifyCode:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });

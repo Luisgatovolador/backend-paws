@@ -2,10 +2,12 @@ openapi: 3.0.0
 info:
   title: API de Usuarios
   version: 1.0.0
-  description: API para listar y registrar usuarios
+  description: API para gestionar usuarios con login y 2FA offline
 servers:
   - url: http://localhost:3000
+
 paths:
+  # --- CRUD Usuarios ---
   /usuarios:
     get:
       summary: Lista todos los usuarios
@@ -27,13 +29,14 @@ paths:
                       type: string
                     rol:
                       type: string
+
   /usuarios/nuevo:
     post:
       summary: Crea un nuevo usuario
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               type: object
               properties:
@@ -49,6 +52,7 @@ paths:
       responses:
         '201':
           description: Usuario creado
+
   /usuarios/{id}:
     put:
       summary: Actualiza un usuario por ID
@@ -62,7 +66,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               type: object
               properties:
@@ -78,6 +82,7 @@ paths:
           description: Usuario actualizado
         '404':
           description: Usuario no encontrado
+
     delete:
       summary: Elimina un usuario por ID
       parameters:
@@ -92,6 +97,8 @@ paths:
           description: Usuario eliminado
         '404':
           description: Usuario no encontrado
+
+  # --- Recuperación de contraseña ---
   /api/v1/forgot-password:
     post:
       summary: Enviar enlace para restablecer contraseña
@@ -110,6 +117,7 @@ paths:
           description: Correo de restablecimiento enviado
         '404':
           description: Usuario no encontrado
+
   /api/v1/reset-password/{token}:
     post:
       summary: Restablecer la contraseña con un token
@@ -134,9 +142,11 @@ paths:
           description: Contraseña actualizada
         '400':
           description: Token inválido o expirado
+
+  # --- Login online (sin 2FA) ---
   /api/v1/login:
     post:
-      summary: Iniciar sesión con 2FA offline
+      summary: Iniciar sesión (online, sin 2FA)
       requestBody:
         required: true
         content:
@@ -149,26 +159,25 @@ paths:
                   format: email
                 password:
                   type: string
-                token:
-                  type: string
-                  description: Código TOTP de 6 dígitos de Google Authenticator
       responses:
         '200':
-          description: Inicio de sesión exitoso
+          description: Login exitoso, devuelve userId para 2FA si aplica
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  token:
-                    type: string
                   message:
                     type: string
+                  userId:
+                    type: integer
         '401':
-          description: Credenciales inválidas o código 2FA incorrecto
+          description: Credenciales inválidas
+
+  # --- Verificación 2FA offline (TOTP) ---
   /api/v1/verify-2fa:
     post:
-      summary: Verificar el código 2FA
+      summary: Verificar código 2FA (offline / TOTP)
       requestBody:
         required: true
         content:
@@ -180,10 +189,10 @@ paths:
                   type: integer
                 code:
                   type: string
-                  description: Código de verificación de 6 dígitos
+                  description: Código de 6 dígitos de Google Authenticator
       responses:
         '200':
-          description: Inicio de sesión exitoso
+          description: Inicio de sesión exitoso con 2FA, devuelve JWT
           content:
             application/json:
               schema:
@@ -194,4 +203,4 @@ paths:
                   message:
                     type: string
         '401':
-          description: Código de verificación inválido o expirado
+          description: Código 2FA inválido o expirado
