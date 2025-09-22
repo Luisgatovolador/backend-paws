@@ -124,11 +124,10 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
-
-
 //login 
 const speakeasy = require('speakeasy');
-// --- Función de Login (con 2FA) ---
+
+// --- Función de Login (con 2FA híbrido) ---
 exports.login = async (req, res) => {
     const { email, password } = req.body;
 
@@ -140,11 +139,14 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
 
+        // Código de verificación por correo (válido solo si hay internet)
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
         const expires = new Date(Date.now() + 600000); // 10 minutos
-        
-        await db.query('UPDATE usuarios SET verification_code = $1, verification_code_expires = $2 WHERE id = $3', 
-            [verificationCode, expires, user.id]);
+
+        await db.query(
+            'UPDATE usuarios SET verification_code = $1, verification_code_expires = $2 WHERE id = $3',
+            [verificationCode, expires, user.id]
+        );
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
@@ -152,16 +154,25 @@ exports.login = async (req, res) => {
             subject: 'Código de verificación de inicio de sesión',
             html: `<p>Tu código de verificación es: <strong>${verificationCode}</strong></p><p>Este código expirará en 10 minutos.</p>`,
         };
-        await transporter.sendMail(mailOptions);
 
-        // Asigna userId y actionName para el registro de ubicación.
-        req.body.userId = user.id;
-        req.body.actionName = 'user_login';
-        
-        // Llama a la función para guardar la ubicación.
-        locationController.saveLocationByIp(req, {});
+        try {
+            await transporter.sendMail(mailOptions);
+            res.status(200).json({
+                message: 'Se ha enviado un código de verificación a tu correo.',
+                needsVerification: true,
+                userId: user.id,
+                method: 'email'
+            });
+        } catch (mailError) {
+            console.warn("Fallo envío de correo, usar TOTP:", mailError.code);
+            res.status(200).json({
+                message: 'No se pudo enviar el correo. Usa tu aplicación de autenticación (TOTP).',
+                needsVerification: true,
+                userId: user.id,
+                method: 'totp'
+            });
+        }
 
-        res.status(200).json({ message: 'Se ha enviado un código de verificación a tu correo.', needsVerification: true, userId: user.id });
     } catch (error) {
         console.error('Error en login:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
@@ -207,18 +218,18 @@ exports.verifyCode = async (req, res) => {
 
         // Limpiar el código de correo si se usó
         if (codeIsValid) {
-            await db.query('UPDATE usuarios SET verification_code = NULL, verification_code_expires = NULL WHERE id = $1', [userId]);
+            await db.query(
+                'UPDATE usuarios SET verification_code = NULL, verification_code_expires = NULL WHERE id = $1',
+                [userId]
+            );
         }
 
-        // Asignar el userId y actionName para la verificación exitosa
-        req.body.userId = user.id;
-        req.body.actionName = 'successful_2fa';
-        
-        // Llamar a la función de guardado de ubicación y acción.
-        // Se ejecuta sin esperar la respuesta para no bloquear la respuesta principal.
-        locationController.saveLocationByIp(req, {});
-
-        res.status(200).json({ token, message: 'Inicio de sesión exitoso con 2FA.' });
+        const method = codeIsValid ? 'email' : 'totp';
+        res.status(200).json({
+            token,
+            method,
+            message: `Inicio de sesión exitoso con 2FA (${method}).`
+        });
 
     } catch (error) {
         console.error('Error en verifyCode:', error);
