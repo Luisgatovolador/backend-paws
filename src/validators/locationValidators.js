@@ -16,6 +16,11 @@ const locationSchema = Joi.object({
     })
 });
 
+const userIdSchema = Joi.object({
+  userId: Joi.number().integer().positive().required()
+});
+
 module.exports = {
-  locationSchema
+  locationSchema,
+  userIdSchema
 };
