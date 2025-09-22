@@ -204,3 +204,43 @@ paths:
                     type: string
         '401':
           description: Código 2FA inválido o expirado
+          
+  # --- Geolocation ---
+  /api/v1/get-by-id:
+    post:
+      summary: Obtiene el historial de ubicaciones de un usuario por ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                  description: ID del usuario para obtener el historial de ubicaciones.
+              required:
+                - userId
+      responses:
+        '200':
+          description: Lista de ubicaciones para el usuario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                    timestamp:
+                      type: string
+                      format: date-time
+                    action_id:
+                      type: integer
+        '400':
+          description: Falta el ID de usuario o es inválido.
+        '500':
+          description: Error interno del servidor
