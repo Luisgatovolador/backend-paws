@@ -3,6 +3,18 @@ const bcrypt = require('bcrypt');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const { crearUsuarioSchema, eliminarUsuarioSchema } = require('../validators/usuarioValidation');
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_APP_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
 
 // Crear usuario
 const crearUsuario = async (req, res) => {
@@ -30,6 +42,18 @@ const crearUsuario = async (req, res) => {
 
     // 4️⃣ Generar QR para el 2FA
     const qrUrl = await QRCode.toDataURL(secret.otpauth_url);
+    // 5️⃣ Enviar correo de notificación
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Bienvenido a la plataforma',
+      html: `
+        <p>Hola ${nombre},</p>
+        <p>Tu cuenta se ha creado exitosamente con el rol <strong>${rol}</strong>.</p>
+        <p>Para mayor seguridad, hemos configurado autenticación de doble factor (2FA).</p>
+      `,
+    };
+    await transporter.sendMail(mailOptions);
 
     res.status(201).json({ 
       mensaje: 'Usuario creado con éxito.', 
@@ -67,6 +91,18 @@ const eliminarUsuario = async (req, res) => {
     if (result.rowCount === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado.' });
     }
+    // 3️⃣ Enviar correo de notificación
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: result.rows[0].email,
+      subject: 'Cuenta eliminada',
+      html: `
+        <p>Hola ${result.rows[0].nombre},</p>
+        <p>Tu cuenta ha sido eliminada del sistema.</p>
+        <p>Si no solicitaste esta acción, por favor contacta a soporte de inmediato.</p>
+      `,
+    };
+    await transporter.sendMail(mailOptions);
 
     res.json({ message: 'Usuario eliminado con éxito.', usuario: result.rows[0] });
   } catch (err) {

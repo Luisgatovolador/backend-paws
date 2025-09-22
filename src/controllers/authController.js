@@ -49,6 +49,19 @@ exports.forgotPassword = async (req, res) => {
 
         await transporter.sendMail(mailOptions);
 
+        const mailOptionsNotify = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Solicitud de restablecimiento de contraseña',
+        html: `
+       
+        <p>Has solicitado restablecer tu contraseña. Si no fuiste tú, ignora este mensaje.</p>
+        <p>Si realizaste la solicitud, revisa el enlace de recuperación enviado.</p>
+        `,
+        };
+        await transporter.sendMail(mailOptionsNotify);
+
+
         // Asigna userId y actionName para el registro de ubicación.
         req.body.userId = user.id;
         req.body.actionName = 'forgot_password_request'; 
@@ -93,8 +106,19 @@ exports.resetPassword = async (req, res) => {
         
         // Llama a la función para guardar la ubicación.
         locationController.saveLocationByIp(req, {});
+        const mailOptionsNotify = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Contraseña actualizada correctamente',
+        html: `
+            <p>Tu contraseña ha sido cambiada correctamente.</p>
+            <p>Si no realizaste este cambio, por favor contacta al soporte de inmediato.</p>
+        `,
+        };
+        await transporter.sendMail(mailOptionsNotify);
 
         res.status(200).json({ message: 'Contraseña actualizada correctamente.' });
+
     } catch (error) {
         console.error('Error en resetPassword:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
