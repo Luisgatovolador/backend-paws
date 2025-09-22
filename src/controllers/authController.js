@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const db = require('../db/index'); 
 const authValidator = require('../validators/authValidators'); // Ruta del validador corregida
+const locationController = require('./locationController')
 
 // Configuración de Nodemailer usando las variables de entorno
 const transporter = nodemailer.createTransport({
@@ -47,6 +48,14 @@ exports.forgotPassword = async (req, res) => {
         };
 
         await transporter.sendMail(mailOptions);
+
+        // Asigna userId y actionName para el registro de ubicación.
+        req.body.userId = user.id;
+        req.body.actionName = 'forgot_password_request'; 
+        
+        // Llama a la función para guardar la ubicación.
+        locationController.saveLocationByIp(req, {});
+
         res.status(200).json({ message: 'Enlace de restablecimiento de contraseña enviado a tu correo.' });
     } catch (error) {
         console.error('Error en forgotPassword:', error);
@@ -77,6 +86,13 @@ exports.resetPassword = async (req, res) => {
 
         await db.query('UPDATE usuarios SET password = $1, reset_password_token = NULL, reset_password_expires = NULL WHERE id = $2', 
             [hashedPassword, user.id]);
+
+        // Asigna userId y actionName para el registro de ubicación.
+        req.body.userId = user.id;
+        req.body.actionName = 'password_reset';
+        
+        // Llama a la función para guardar la ubicación.
+        locationController.saveLocationByIp(req, {});
 
         res.status(200).json({ message: 'Contraseña actualizada correctamente.' });
     } catch (error) {
@@ -113,6 +129,13 @@ exports.login = async (req, res) => {
             html: `<p>Tu código de verificación es: <strong>${verificationCode}</strong></p><p>Este código expirará en 10 minutos.</p>`,
         };
         await transporter.sendMail(mailOptions);
+
+        // Asigna userId y actionName para el registro de ubicación.
+        req.body.userId = user.id;
+        req.body.actionName = 'user_login';
+        
+        // Llama a la función para guardar la ubicación.
+        locationController.saveLocationByIp(req, {});
 
         res.status(200).json({ message: 'Se ha enviado un código de verificación a tu correo.', needsVerification: true, userId: user.id });
     } catch (error) {
@@ -162,6 +185,14 @@ exports.verifyCode = async (req, res) => {
         if (codeIsValid) {
             await db.query('UPDATE usuarios SET verification_code = NULL, verification_code_expires = NULL WHERE id = $1', [userId]);
         }
+
+        // Asignar el userId y actionName para la verificación exitosa
+        req.body.userId = user.id;
+        req.body.actionName = 'successful_2fa';
+        
+        // Llamar a la función de guardado de ubicación y acción.
+        // Se ejecuta sin esperar la respuesta para no bloquear la respuesta principal.
+        locationController.saveLocationByIp(req, {});
 
         res.status(200).json({ token, message: 'Inicio de sesión exitoso con 2FA.' });
 
