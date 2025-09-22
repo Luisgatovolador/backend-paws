@@ -2,11 +2,11 @@
 
 const db = require('../db/index');
 const axios = require('axios');
-const { locationSchema } = require('../validators/locationValidators');
+const { locationSchema, userIdSchema } = require('../validators/locationValidators');
 
 const getClientIp = (req) => {
     const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-    
+
     // Si la IP es localhost o su representación IPv6, devolvemos 'localhost'
     if (ipAddress === '::1' || ipAddress === '127.0.0.1' || ipAddress === '::ffff:127.0.0.1') {
         return 'localhost';
@@ -18,8 +18,7 @@ exports.saveLocationByIp = async (req, res) => {
     try {
         const { error } = locationSchema.validate({ userId: req.body.userId, actionName: req.body.actionName });
         if (error) {
-            console.error('Error de validación en saveLocationByIp:', error.details[0].message);
-            return;
+            return res.status(400).json({ message: error.details[0].message });
         }
 
         const { userId, actionName } = req.body;
@@ -72,8 +71,13 @@ exports.saveLocationByIp = async (req, res) => {
 };
 
 exports.getLocationsByUserId = async (req, res) => {
+    const { error } = userIdSchema.validate(req.body);
+    
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
+    }
     try {
-        const { userId } = req.params;
+        const { userId } = req.body;
         const result = await db.query(
             'SELECT latitude, longitude, timestamp, action_id FROM user_locations WHERE user_id = $1 ORDER BY timestamp DESC',
             [userId]
