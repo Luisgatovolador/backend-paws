@@ -61,7 +61,6 @@ exports.forgotPassword = async (req, res) => {
         };
         await transporter.sendMail(mailOptionsNotify);
 
-
         // Asigna userId y actionName para el registro de ubicación.
         req.body.userId = user.id;
         req.body.actionName = 'forgot_password_request'; 
@@ -172,6 +171,13 @@ exports.login = async (req, res) => {
                 method: 'totp'
             });
         }
+
+        // Asigna userId y actionName para el registro de ubicación.
+        req.body.userId = user.id;
+        req.body.actionName = 'password_reset';
+        
+        // Llama a la función para guardar la ubicación.
+        locationController.saveLocationByIp(req, {});
 
     } catch (error) {
         console.error('Error en login:', error);
