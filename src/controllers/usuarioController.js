@@ -68,7 +68,7 @@ const crearUsuario = async (req, res) => {
 const obtenerUsuarios = async (req, res) => {
   try {
     // Validamos el body
-    const { error, value } = obtenerUsuarioSchema.validate(req.body);
+    const { error, value } = obtenerUsuarioSchema.validate(req.body,{ convert: false });
     if (error) {
       return res.status(400).json({ message: error.details[0].message });
     }
