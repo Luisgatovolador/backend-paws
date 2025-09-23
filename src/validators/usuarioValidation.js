@@ -91,11 +91,23 @@ const actualizarUsuarioSchema = Joi.object({
       'any.required': 'El rol es obligatorio.'
     })
 });
-
+// ✅ Esquema para obtener usuarios
+const obtenerUsuarioSchema = Joi.object({
+  id: Joi.number()
+    .integer()
+    .positive()
+    .optional() // 👈 ahora no es obligatorio
+    .messages({
+      'number.base': 'El ID debe ser un número.',
+      'number.integer': 'El ID debe ser un número entero.',
+      'number.positive': 'El ID debe ser mayor que 0.'
+    })
+}).unknown(false); // no deja meter otros campos que no sean "id"
 
 
 module.exports = {
   crearUsuarioSchema,
   eliminarUsuarioSchema,
-  actualizarUsuarioSchema
+  actualizarUsuarioSchema,
+  obtenerUsuarioSchema
 };

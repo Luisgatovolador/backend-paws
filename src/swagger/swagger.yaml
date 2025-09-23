@@ -9,26 +9,41 @@ servers:
 paths:
   # --- CRUD Usuarios ---
   /usuarios:
-    get:
-      summary: Lista todos los usuarios
+    post:
+      summary: Obtiene un usuario por ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
       responses:
         '200':
-          description: Lista de usuarios
+          description: Usuario encontrado
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    nombre:
-                      type: string
-                    email:
-                      type: string
-                    rol:
-                      type: string
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  nombre:
+                    type: string
+                    example: Juan Pérez
+                  email:
+                    type: string
+                    example: juan@example.com
+                  rol:
+                    type: string
+                    example: usuario
+        '404':
+          description: Usuario no encontrado
+
 
   /usuarios/nuevo:
     post:

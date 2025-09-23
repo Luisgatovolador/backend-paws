@@ -2,7 +2,7 @@ const pool = require('../db');
 const bcrypt = require('bcrypt');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
-const { crearUsuarioSchema, eliminarUsuarioSchema,actualizarUsuarioSchema } = require('../validators/usuarioValidation');
+const { crearUsuarioSchema, eliminarUsuarioSchema,actualizarUsuarioSchema,obtenerUsuarioSchema } = require('../validators/usuarioValidation');
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
@@ -64,14 +64,39 @@ const crearUsuario = async (req, res) => {
     res.status(500).json({ message: 'Error al crear usuario', error: err.message });
   }
 };
-
-// Obtener todos los usuarios
+// Obtener usuarios
 const obtenerUsuarios = async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, nombre, email, rol FROM usuarios ORDER BY id ASC');
+    // Validamos el body
+    const { error, value } = obtenerUsuarioSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ message: error.details[0].message });
+    }
+
+    const { id } = value; // 👈 usamos el valor validado
+    let result;
+
+    if (!id) {
+      // Si no se pasa id -> traer todos
+      result = await pool.query('SELECT id, nombre, email, rol FROM usuarios ORDER BY id ASC');
+    } else {
+      // Si se pasa id -> traer solo el correspondiente
+      result = await pool.query(
+        'SELECT id, nombre, email, rol FROM usuarios WHERE id = $1',
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: 'Usuario no encontrado.' });
+      }
+    }
+
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ message: 'Error al obtener los usuarios.', error: err.message });
+    res.status(500).json({
+      message: 'Error al obtener los usuarios.',
+      error: err.message
+    });
   }
 };
 
