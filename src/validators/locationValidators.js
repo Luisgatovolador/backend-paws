@@ -3,6 +3,8 @@ const Joi = require('joi');
 
 const locationSchema = Joi.object({
   userId: Joi.number()
+    .integer()
+    .positive()
     .required()
     .messages({
       'any.required': 'El ID de usuario es requerido.',

@@ -50,6 +50,8 @@ const resetPasswordSchema = Joi.object({
 // Esquema para la validación del código 2FA
 const verifyCodeSchema = Joi.object({
   userId: Joi.number()
+    .integer()
+    .positive()
     .required()
     .messages({
       'any.required': 'El ID de usuario es requerido.',
