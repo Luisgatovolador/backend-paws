@@ -40,7 +40,7 @@ const crearUsuarioSchema = Joi.object({
     })
 }).unknown(false);
 
-// ✅ Esquema para eliminación de usuario
+// Esquema para eliminación de usuario
 const eliminarUsuarioSchema = Joi.object({
   id: Joi.number()
     .integer()
@@ -91,18 +91,18 @@ const actualizarUsuarioSchema = Joi.object({
       'any.required': 'El rol es obligatorio.'
     })
 });
-// ✅ Esquema para obtener usuarios
+
 const obtenerUsuarioSchema = Joi.object({
   id: Joi.number()
     .integer()
     .positive()
-    .optional() // 👈 ahora no es obligatorio
+    .optional()
     .messages({
       'number.base': 'El ID debe ser un número.',
       'number.integer': 'El ID debe ser un número entero.',
       'number.positive': 'El ID debe ser mayor que 0.'
     })
-}).unknown(false); // no deja meter otros campos que no sean "id"
+}).unknown(false);
 
 
 module.exports = {
