@@ -53,16 +53,9 @@ paths:
         '201':
           description: Usuario creado
 
-  /usuarios/{id}:
+  /usuarios/update:
     put:
       summary: Actualiza un usuario por ID
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: integer
-          required: true
-          description: ID del usuario
       requestBody:
         required: true
         content:
@@ -70,6 +63,9 @@ paths:
             schema:
               type: object
               properties:
+                id:
+                  type: integer
+                  description: ID del usuario a actualizar
                 nombre:
                   type: string
                 email:
@@ -77,26 +73,63 @@ paths:
                 rol:
                   type: string
                   enum: [admin, editor, lector]
+              required:
+                - id
+                - nombre
+                - email
+                - rol
       responses:
         '200':
           description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  usuario:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      nombre:
+                        type: string
+                      email:
+                        type: string
+                      rol:
+                        type: string
         '404':
           description: Usuario no encontrado
 
+ 
+  /usuarios/delete:
     delete:
-      summary: Elimina un usuario por ID
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: integer
-          required: true
-          description: ID del usuario
+      summary: Elimina un usuario enviando JSON con su ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  minimum: 1   # no permite negativos ni 0
+                  description: ID del usuario (entero positivo)
+              required:
+                - id
       responses:
         '200':
-          description: Usuario eliminado
-        '404':
+          description: Usuario eliminado correctamente
+        '200':
+          description: ID inválido
+        '200':
           description: Usuario no encontrado
+
+
 
   # --- Recuperación de contraseña ---
   /api/v1/forgot-password:
