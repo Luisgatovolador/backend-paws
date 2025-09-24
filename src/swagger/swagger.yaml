@@ -41,7 +41,7 @@ paths:
                   rol:
                     type: string
                     example: usuario
-        '404':
+        '200':
           description: Usuario no encontrado
 
 
@@ -116,7 +116,7 @@ paths:
                         type: string
                       rol:
                         type: string
-        '404':
+        '200':
           description: Usuario no encontrado
 
  
@@ -163,7 +163,7 @@ paths:
       responses:
         '200':
           description: Correo de restablecimiento enviado
-        '404':
+        '200':
           description: Usuario no encontrado
 
   /api/v1/reset-password/{token}:
@@ -188,7 +188,7 @@ paths:
       responses:
         '200':
           description: Contraseña actualizada
-        '400':
+        '200':
           description: Token inválido o expirado
 
   # --- Login online (sin 2FA) ---
@@ -219,7 +219,7 @@ paths:
                     type: string
                   userId:
                     type: integer
-        '401':
+        '200':
           description: Credenciales inválidas
 
   # --- Verificación 2FA offline (TOTP) ---
@@ -250,7 +250,7 @@ paths:
                     type: string
                   message:
                     type: string
-        '401':
+        '200':
           description: Código 2FA inválido o expirado
           
   # --- Geolocation ---
@@ -288,7 +288,7 @@ paths:
                       format: date-time
                     action_id:
                       type: integer
-        '400':
+        '200':
           description: Falta el ID de usuario o es inválido.
         '500':
           description: Error interno del servidor
