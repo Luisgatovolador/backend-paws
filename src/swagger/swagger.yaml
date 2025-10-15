@@ -4,10 +4,10 @@ info:
   version: 1.0.0
   description: API para gestionar usuarios con login y 2FA offline
 servers:
-  - url: http://localhost:3000
+- url: http://localhost:3000
 
 paths:
- 
+
   /usuarios:
     post:
       summary: Obtiene un usuario por ID
@@ -41,9 +41,8 @@ paths:
                   rol:
                     type: string
                     example: usuario
-        '200':
+        '201':
           description: Usuario no encontrado
-
 
   /usuarios/nuevo:
     post:
@@ -63,7 +62,7 @@ paths:
                   type: string
                 rol:
                   type: string
-                  enum: [admin, editor, lector]
+                  enum: [ admin, editor, lector ]
       responses:
         '201':
           description: Usuario creado
@@ -87,12 +86,12 @@ paths:
                   type: string
                 rol:
                   type: string
-                  enum: [admin, editor, lector]
+                  enum: [ admin, editor, lector ]
               required:
-                - id
-                - nombre
-                - email
-                - rol
+              - id
+              - nombre
+              - email
+              - rol
       responses:
         '200':
           description: Usuario actualizado
@@ -116,10 +115,9 @@ paths:
                         type: string
                       rol:
                         type: string
-        '200':
+        '201':
           description: Usuario no encontrado
 
- 
   /usuarios/delete:
     delete:
       summary: Elimina un usuario enviando JSON con su ID
@@ -132,19 +130,17 @@ paths:
               properties:
                 id:
                   type: integer
-                  minimum: 1   # no permite negativos ni 0
+                  minimum: 1 # no permite negativos ni 0
                   description: ID del usuario (entero positivo)
               required:
-                - id
+              - id
       responses:
         '200':
           description: Usuario eliminado correctamente
-        '200':
+        '201':
           description: ID inválido
-        '200':
+        '202':
           description: Usuario no encontrado
-
-
 
   # --- Recuperación de contraseña ---
   /api/v1/forgot-password:
@@ -163,19 +159,19 @@ paths:
       responses:
         '200':
           description: Correo de restablecimiento enviado
-        '200':
+        '201':
           description: Usuario no encontrado
 
   /api/v1/reset-password/{token}:
     post:
       summary: Restablecer la contraseña con un token
       parameters:
-        - in: path
-          name: token
-          required: true
-          schema:
-            type: string
-          description: Token de restablecimiento
+      - in: path
+        name: token
+        required: true
+        schema:
+          type: string
+        description: Token de restablecimiento
       requestBody:
         required: true
         content:
@@ -188,7 +184,7 @@ paths:
       responses:
         '200':
           description: Contraseña actualizada
-        '200':
+        '201':
           description: Token inválido o expirado
 
   # --- Login online (sin 2FA) ---
@@ -219,7 +215,7 @@ paths:
                     type: string
                   userId:
                     type: integer
-        '200':
+        '201':
           description: Credenciales inválidas
 
   # --- Verificación 2FA offline (TOTP) ---
@@ -250,9 +246,9 @@ paths:
                     type: string
                   message:
                     type: string
-        '200':
+        '201':
           description: Código 2FA inválido o expirado
-          
+
   # --- Geolocation ---
   /api/v1/get-by-id:
     post:
@@ -268,7 +264,7 @@ paths:
                   type: integer
                   description: ID del usuario para obtener el historial de ubicaciones.
               required:
-                - userId
+              - userId
       responses:
         '200':
           description: Lista de ubicaciones para el usuario
@@ -288,7 +284,171 @@ paths:
                       format: date-time
                     action_id:
                       type: integer
-        '200':
+        '201':
           description: Falta el ID de usuario o es inválido.
         '500':
           description: Error interno del servidor
+
+  # --- Products ---
+  /api/v1/products:
+    get:
+      summary: Obtener listado COMPLETO de productos
+      tags: [ Productos ]
+      # ELIMINADO: Ya no hay sección 'parameters' aquí.
+      responses:
+        '200':
+          description: Lista de productos completa.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id_producto:
+                      type: integer
+                      example: 1
+                    codigo:
+                      type: string
+                      example: LAP-001
+                    nombre:
+                      type: string
+                      example: Laptop Empresarial X
+                    stock_actual:
+                      type: integer
+        '500':
+          description: Error interno del servidor
+
+  /api/v1/products/stock-alert:
+    get:
+      summary: Obtener listado de productos con alerta de stock (Stock_Actual < Stock_Mínimo)
+      tags: [ Productos ]
+      # Esta ruta dedicada realiza la función que antes tenía el query.
+      responses:
+        '200':
+          description: Lista de productos que requieren reposición.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id_producto:
+                      type: integer
+                    codigo:
+                      type: string
+                    stock_actual:
+                      type: integer
+                    stock_minimo:
+                      type: integer
+        '500':
+          description: Error interno del servidor
+
+  /api/v1/products/nuevo:
+    post:
+      summary: Crea un nuevo producto (Todos los campos requeridos excepto Descripción y Stock_Actual).
+      tags: [ Productos ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              # Aquí se espera el cuerpo JSON con todos los datos
+              type: object
+              properties:
+                codigo:
+                  type: string
+                  maxLength: 20
+                  pattern: '^[a-zA-Z0-9]+$'
+                  example: LAP001
+                nombre:
+                  type: string
+                  maxLength: 100
+                  pattern: '^[a-zA-Z\s]+$'
+                  example: Laptop Empresarial
+                descripcion:
+                  type: string
+                  maxLength: 255
+                  example: Equipo con procesador i7 de 12va generación
+                  nullable: true
+                categoria:
+                  type: string
+                  maxLength: 50
+                  example: Computadoras
+                unidad:
+                  type: string
+                  example: Pieza
+                stock_minimo:
+                  type: integer
+                  minimum: 0
+                  example: 5
+                stock_actual:
+                  type: integer
+                  minimum: 0
+                  example: 0
+              required:
+              - codigo
+              - nombre
+              - categoria
+              - unidad
+              - stock_minimo
+      responses:
+        '201':
+          description: Producto creado exitosamente.
+        '400':
+          description: Datos inválidos o código duplicado.
+
+  /api/v1/products/update:
+    put:
+      summary: Actualiza un producto enviando su ID en el cuerpo JSON.
+      tags: [ Productos ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              # Aquí se espera el cuerpo JSON con el ID_Producto
+              type: object
+              properties:
+                id_producto:
+                  type: integer
+                  description: ID del producto a actualizar.
+                  example: 1
+                codigo:
+                  type: string
+                  description: Nuevo código (opcional).
+                # ... (Otros campos de actualización)
+              required:
+              - id_producto
+      responses:
+        '200':
+          description: Producto actualizado.
+        '404':
+          description: Producto no encontrado.
+
+  /api/v1/products/delete:
+    delete:
+      summary: Elimina un producto enviando su ID en el cuerpo JSON.
+      tags: [ Productos ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              # Aquí se espera el cuerpo JSON con el ID_Producto
+              type: object
+              properties:
+                id_producto:
+                  type: integer
+                  description: ID del producto a eliminar.
+                  example: 1
+              required:
+              - id_producto
+      responses:
+        '200':
+          description: Producto eliminado.
+        '400':
+          description: El producto tiene movimientos de inventario asociados (FK conflict).
+        '404':
+          description: Producto no encontrado.
