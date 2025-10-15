@@ -452,3 +452,84 @@ paths:
           description: El producto tiene movimientos de inventario asociados (FK conflict).
         '404':
           description: Producto no encontrado.
+
+  # --- Registro Movimientos ---
+  /api/v1/movimientos/registrar:
+    post:
+      summary: Registra una Entrada o Salida de producto y actualiza el stock.
+      tags: [ Movimientos ]
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_producto:
+                  type: integer
+                  example: 12
+                  description: ID del producto afectado.
+                tipo:
+                  type: string
+                  enum: [ Entrada, Salida ]
+                  example: Entrada
+                cantidad:
+                  type: integer
+                  minimum: 1
+                  example: 10
+                referencia:
+                  type: string
+                  maxLength: 50
+                  description: Número de factura o documento de soporte (opcional).
+                  nullable: true
+                responsable:
+                  type: string
+                  maxLength: 80
+                  description: Nombre del responsable de la operación.
+                  example: Ana Lopez
+              required:
+              - id_producto
+              - tipo
+              - cantidad
+              - responsable
+      responses:
+        '201':
+          description: Movimiento registrado y Stock_Actual actualizado con éxito.
+        '400':
+          description: Datos inválidos o Salida mayor al stock disponible.
+        '401':
+          description: No autorizado (Token inválido).
+        '403':
+          description: Prohibido (Rol no permitido).
+
+  /api/v1/movimientos/historial:
+    post:
+      summary: Obtiene el historial de movimientos para un producto específico, enviando el ID en el cuerpo JSON.
+      tags: [ Movimientos ]
+      security:
+      - bearerAuth: []
+      requestBody:
+        # <-- Ahora usamos requestBody
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_producto:
+                  type: integer
+                  minimum: 1
+                  example: 12
+                  description: El ID del producto a consultar.
+              required:
+              - id_producto
+      responses:
+        '200':
+          description: Listado de movimientos históricos.
+          # ... (Definición del schema de respuesta)
+        '401':
+          description: No autorizado.
+        '404':
+          description: Producto no encontrado o sin movimientos.
