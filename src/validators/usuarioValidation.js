@@ -31,11 +31,11 @@ const crearUsuarioSchema = Joi.object({
       'string.pattern.base': 'La contraseña debe tener al menos 8 caracteres, incluir mayúscula, minúscula, número y símbolo.',
       'any.required': 'La contraseña es obligatoria.'
     }),
-   rol: Joi.string()
-    .valid('Empleado', 'Administrador') // ← CAMBIO AQUÍ
+  rol: Joi.string()
+    .valid('admin', 'editor', 'lector')
     .required()
     .messages({
-      'any.only': 'El rol debe ser: Empleado o Administrador.', // ← ACTUALIZA EL MENSAJE
+      'any.only': 'El rol debe ser uno de: admin, editor o lector.',
       'any.required': 'El rol es obligatorio.'
     })
 }).unknown(false);
@@ -84,10 +84,11 @@ const actualizarUsuarioSchema = Joi.object({
       'any.required': 'El email es obligatorio.'
     }),
   rol: Joi.string()
-    .valid('Empleado', 'Administrador') // ← MISMO CAMBIO AQUÍ
-    .optional()
+    .valid('admin', 'editor', 'lector')
+    .required()
     .messages({
-      'any.only': 'El rol debe ser: Empleado o Administrador.'
+      'any.only': 'El rol debe ser admin, editor o lector.',
+      'any.required': 'El rol es obligatorio.'
     })
 });
 
