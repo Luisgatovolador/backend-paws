@@ -9,13 +9,19 @@ const usuariosRouter = require('./routes/usuarios');
 const authRouter = require('./routes/auth');
 const locatioRouter = require('./routes/location');
 
+
+// --- 1. AÑADE LA IMPORTACIÓN DE LA NUEVA RUTA AQUÍ ---
+const proveedoresRouter = require('./routes/proveedores');
+const clientesRouter = require('./routes/clientes'); // Añade esta línea
+
+
 const app = express();
 app.use(express.json());
 
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({
-      message: 'El cuerpo de la petición no tiene un formato JSON válido.'
+      messagea: 'El cuerpo de la petición no tiene un formato JSON válido.'
     });
   }
   next();
@@ -41,6 +47,9 @@ app.use(bodyParser.json());
 app.use('/usuarios', usuariosRouter);
 app.use('/api/v1',authRouter);
 app.use('/api/v1',locatioRouter);
+
+app.use('/api/v1/proveedores', proveedoresRouter);
+app.use('/api/v1/clientes', clientesRouter);
 
 // Swagger
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger/swagger.yaml'));
