@@ -2,33 +2,54 @@ openapi: 3.0.0
 info:
   title: API de Usuarios
   version: 1.0.0
-  description: API para listar y registrar usuarios
+  description: API para gestionar usuarios con login y 2FA offline
 servers:
   - url: http://localhost:3000
+
+
+tags:
+  - name: Proveedores
+    description: Operaciones para gestionar los proveedores
+# --- FIN DE AGREGA ESTO ---
+  - name: Clientes
+    description: Operaciones para gestionar los clientes
 paths:
-
-
+ 
   /usuarios:
-    get:
-      summary: Lista todos los usuarios
+    post:
+      summary: Obtiene un usuario por ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
       responses:
         '200':
-          description: Lista de usuarios
+          description: Usuario encontrado
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    nombre:
-                      type: string
-                    email:
-                      type: string
-                    rol:
-                      type: string
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  nombre:
+                    type: string
+                    example: Juan Pérez
+                  email:
+                    type: string
+                    example: juan@example.com
+                  rol:
+                    type: string
+                    example: usuario
+        '200':
+          description: Usuario no encontrado
 
 
   /usuarios/nuevo:
@@ -37,7 +58,7 @@ paths:
       requestBody:
         required: true
         content:
-         application/json:
+          application/json:
             schema:
               type: object
               properties:
@@ -54,17 +75,9 @@ paths:
         '201':
           description: Usuario creado
 
-
-  /usuarios/{id}:
+  /usuarios/update:
     put:
       summary: Actualiza un usuario por ID
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: integer
-          required: true
-          description: ID del usuario
       requestBody:
         required: true
         content:
@@ -72,6 +85,9 @@ paths:
             schema:
               type: object
               properties:
+                id:
+                  type: integer
+                  description: ID del usuario a actualizar
                 nombre:
                   type: string
                 email:
@@ -79,29 +95,65 @@ paths:
                 rol:
                   type: string
                   enum: [admin, editor, lector]
+              required:
+                - id
+                - nombre
+                - email
+                - rol
       responses:
         '200':
           description: Usuario actualizado
-        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  usuario:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      nombre:
+                        type: string
+                      email:
+                        type: string
+                      rol:
+                        type: string
+        '200':
           description: Usuario no encontrado
 
-          
+ 
+  /usuarios/delete:
     delete:
-      summary: Elimina un usuario por ID
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: integer
-          required: true
-          description: ID del usuario
+      summary: Elimina un usuario enviando JSON con su ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  minimum: 1   # no permite negativos ni 0
+                  description: ID del usuario (entero positivo)
+              required:
+                - id
       responses:
         '200':
-          description: Usuario eliminado
-        '404':
+          description: Usuario eliminado correctamente
+        '200':
+          description: ID inválido
+        '200':
           description: Usuario no encontrado
 
 
+
+  # --- Recuperación de contraseña ---
   /api/v1/forgot-password:
     post:
       summary: Enviar enlace para restablecer contraseña
@@ -118,9 +170,8 @@ paths:
       responses:
         '200':
           description: Correo de restablecimiento enviado
-        '404':
+        '200':
           description: Usuario no encontrado
-
 
   /api/v1/reset-password/{token}:
     post:
@@ -144,13 +195,13 @@ paths:
       responses:
         '200':
           description: Contraseña actualizada
-        '400':
+        '200':
           description: Token inválido o expirado
 
-
+  # --- Login online (sin 2FA) ---
   /api/v1/login:
     post:
-      summary: Iniciar sesión con 2FA offline
+      summary: Iniciar sesión (online, sin 2FA)
       requestBody:
         required: true
         content:
@@ -163,28 +214,25 @@ paths:
                   format: email
                 password:
                   type: string
-                token:
-                  type: string
-                  description: Código TOTP de 6 dígitos de Google Authenticator
       responses:
         '200':
-          description: Inicio de sesión exitoso
+          description: Login exitoso, devuelve userId para 2FA si aplica
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  token:
-                    type: string
                   message:
                     type: string
-        '401':
-          description: Credenciales inválidas o código 2FA incorrecto
-  
-  
+                  userId:
+                    type: integer
+        '200':
+          description: Credenciales inválidas
+
+  # --- Verificación 2FA offline (TOTP) ---
   /api/v1/verify-2fa:
     post:
-      summary: Verificar el código 2FA
+      summary: Verificar código 2FA (offline / TOTP)
       requestBody:
         required: true
         content:
@@ -196,10 +244,10 @@ paths:
                   type: integer
                 code:
                   type: string
-                  description: Código de verificación de 6 dígitos
+                  description: Código de 6 dígitos de Google Authenticator
       responses:
         '200':
-          description: Inicio de sesión exitoso
+          description: Inicio de sesión exitoso con 2FA, devuelve JWT
           content:
             application/json:
               schema:
@@ -209,5 +257,374 @@ paths:
                     type: string
                   message:
                     type: string
-        '401':
-          description: Código de verificación inválido o expirado
+        '200':
+          description: Código 2FA inválido o expirado
+          
+  # --- Geolocation ---
+  /api/v1/get-by-id:
+    post:
+      summary: Obtiene el historial de ubicaciones de un usuario por ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                  description: ID del usuario para obtener el historial de ubicaciones.
+              required:
+                - userId
+      responses:
+        '200':
+          description: Lista de ubicaciones para el usuario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                    timestamp:
+                      type: string
+                      format: date-time
+                    action_id:
+                      type: integer
+        '200':
+          description: Falta el ID de usuario o es inválido.
+        '500':
+          description: Error interno del servidor
+
+
+# --- AGREGA TODO ESTE BLOQUE AL FINAL DE 'paths' ---
+  /api/v1/proveedores:
+    get:
+      summary: Obtiene la lista de todos los proveedores
+      tags: [Proveedores]
+      responses:
+        '200':
+          description: Lista de proveedores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Proveedor'
+    post:
+      summary: Crea un nuevo proveedor
+      tags: [Proveedores]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombre:
+                  type: string
+                  description: "Obligatorio, solo letras y espacios, max 100"
+                  example: "Logística Express"
+                telefono:
+                  type: string
+                  description: "Obligatorio, solo números, 8-15 dígitos"
+                  example: "4181234567"
+                contacto:
+                  type: string
+                  description: "Opcional, max 100"
+                  example: "Ana García"
+              required: [nombre, telefono]
+      responses:
+        '201':
+          description: Proveedor creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proveedor'
+        '400':
+          description: Error de validación (ej. falta nombre, teléfono inválido)
+        '409':
+          description: Error de duplicado (mismo nombre y teléfono)
+
+  # ... (Aquí va el /api/v1/proveedores de GET y POST que te di antes) ...
+
+  # --- RUTAS DE PROVEEDORES CON ID EN EL BODY ---
+  /api/v1/proveedores/detail:
+    post:
+      summary: Obtiene uno o más proveedores por ID o por Nombre
+      tags: [Proveedores]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_proveedor:
+                  type: integer
+                  example: 1
+                  description: "ID numérico del proveedor (opcional)"
+                nombre:
+                  type: string
+                  example: "Express"
+                  description: "Nombre o parte del nombre del proveedor (opcional)"
+              description: "Proporcionar al menos uno de los dos campos."
+      responses:
+        '200':
+          description: Datos del/los proveedor(es) encontrado(s)
+          content:
+            application/json:
+              schema:
+                # CAMBIO: Ahora es un array, no un objeto
+                type: array 
+                items:
+                  $ref: '#/components/schemas/Proveedor'
+        '400':
+          description: 'Error de validación (ej. faltan ambos campos)'
+        '404':
+          description: 'Proveedor no encontrado'
+
+
+
+          
+  /api/v1/proveedores/update:
+    put:
+      summary: Actualiza un proveedor existente
+      tags: [Proveedores]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_proveedor:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: "Logística Express Editado"
+                telefono:
+                  type: string
+                  example: "4181234568"
+                contacto:
+                  type: string
+                  example: "Ana García G."
+              required: [id_proveedor]
+      responses:
+        '200':
+          description: Proveedor actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proveedor'
+        '400':
+          description: Error de validación o falta el ID
+        '404':
+          description: Proveedor no encontrado
+
+  /api/v1/proveedores/delete:
+    delete:
+      summary: Elimina un proveedor por su ID
+      tags: [Proveedores]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_proveedor:
+                  type: integer
+                  example: 1
+              required: [id_proveedor]
+      responses:
+        '200':
+          description: Proveedor eliminado exitosamente
+        '404':
+          description: Proveedor no encontrado
+        '409':
+          description: Conflicto (ej. no se puede borrar, tiene movimientos asociados)
+          # --- INICIO DEL BLOQUE PARA CLIENTES ---
+  /api/v1/clientes:
+    get:
+      summary: Obtiene la lista de todos los clientes
+      tags: [Clientes]
+      responses:
+        '200':
+          description: Lista de clientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cliente'
+    post:
+      summary: Crea un nuevo cliente
+      tags: [Clientes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombre:
+                  type: string
+                  description: "Obligatorio, solo letras y espacios, max 100"
+                  example: "Ana Sofía Martínez"
+                telefono:
+                  type: string
+                  description: "Obligatorio, solo números, 8-15 dígitos"
+                  example: "4151234567"
+                contacto:
+                  type: string
+                  description: "Opcional, max 100"
+                  example: "Gerente de Compras"
+              required: [nombre, telefono]
+      responses:
+        '201':
+          description: Cliente creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '400':
+          description: Error de validación (ej. falta nombre, teléfono inválido)
+        '409':
+          description: Error de duplicado (mismo nombre y teléfono)
+
+  /api/v1/clientes/detail:
+    post:
+      summary: Obtiene uno o más clientes por ID o por Nombre
+      tags: [Clientes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_cliente:
+                  type: integer
+                  example: 1
+                  description: "ID numérico del cliente (opcional)"
+                nombre:
+                  type: string
+                  example: "Ana"
+                  description: "Nombre o parte del nombre del cliente (opcional)"
+              description: "Proporcionar al menos uno de los dos campos."
+      responses:
+        '200':
+          description: Datos del/los cliente(s) encontrado(s)
+          content:
+            application/json:
+              schema:
+                # CAMBIO: Ahora es un array
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cliente'
+        '400':
+          description: 'Error de validación (ej. faltan ambos campos)'
+        '404':
+          description: 'Cliente no encontrado'
+
+  /api/v1/clientes/update:
+    put:
+      summary: Actualiza un cliente existente
+      tags: [Clientes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_cliente:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: "Ana Sofía Rodríguez"
+                telefono:
+                  type: string
+                  example: "4151234568"
+                contacto:
+                  type: string
+                  example: "Directora de Compras"
+              required: [id_cliente]
+      responses:
+        '200':
+          description: Cliente actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '400':
+          description: Error de validación o falta el ID
+        '404':
+          description: Cliente no encontrado
+        '409':
+          description: El nuevo nombre o teléfono ya está en uso
+
+  /api/v1/clientes/delete:
+    delete:
+      summary: Elimina un cliente por su ID
+      tags: [Clientes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_cliente:
+                  type: integer
+                  example: 1
+              required: [id_cliente]
+      responses:
+        '200':
+          description: Cliente eliminado exitosamente
+        '404':
+          description: Cliente no encontrado
+        '409':
+          description: Conflicto (no se puede borrar, tiene movimientos asociados)
+# --- FIN DEL BLOQUE PARA CLIENTES ---
+# 'components' comienza aquí, SIN NINGUNA INDENTACIÓN
+components:
+  schemas:
+    Proveedor:
+      type: object
+      properties:
+        id_proveedor:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: "TecnoGlobal S.A."
+        telefono:
+          type: string
+          example: "5512345678"
+        contacto:
+          type: string
+          example: "Juan Pérez"
+
+    Cliente:
+      type: object
+      properties:
+        id_cliente:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: "Carlos Rodríguez"
+        telefono:
+          type: string
+          example: "4151112233"
+        contacto:
+          type: string
+          example: "Compras"

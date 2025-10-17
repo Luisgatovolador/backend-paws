@@ -31,16 +31,16 @@ const crearUsuarioSchema = Joi.object({
       'string.pattern.base': 'La contraseña debe tener al menos 8 caracteres, incluir mayúscula, minúscula, número y símbolo.',
       'any.required': 'La contraseña es obligatoria.'
     }),
-  rol: Joi.string()
-    .valid('admin', 'editor', 'lector')
+   rol: Joi.string()
+    .valid('Empleado', 'Administrador') // ← CAMBIO AQUÍ
     .required()
     .messages({
-      'any.only': 'El rol debe ser uno de: admin, editor o lector.',
+      'any.only': 'El rol debe ser: Empleado o Administrador.', // ← ACTUALIZA EL MENSAJE
       'any.required': 'El rol es obligatorio.'
     })
 }).unknown(false);
 
-// ✅ Esquema para eliminación de usuario
+// Esquema para eliminación de usuario
 const eliminarUsuarioSchema = Joi.object({
   id: Joi.number()
     .integer()
@@ -48,13 +48,65 @@ const eliminarUsuarioSchema = Joi.object({
     .required()
     .messages({
       'any.required': 'El ID de usuario es obligatorio.',
+      'number.base': 'El ID debe ser un número positivo o no puede ser tipo string.',
+      'number.integer': 'El ID debe ser un número entero.',
+      'number.positive': 'El ID debe ser mayor que 0.'
+    })
+}).unknown(false);
+
+
+
+const actualizarUsuarioSchema = Joi.object({
+  id: Joi.number()
+    .integer()
+    .positive()
+    .required()
+    .messages({
+      'number.base': 'El id debe ser un número.',
+      'number.integer': 'El id debe ser un número entero.',
+      'number.positive': 'El id debe ser un número positivo.',
+      'any.required': 'El id es obligatorio.'
+    }),
+  nombre: Joi.string()
+    .min(1)
+    .required()
+    .messages({
+      'string.base': 'El nombre debe ser texto.',
+      'string.empty': 'El nombre es obligatorio.',
+      'any.required': 'El nombre es obligatorio.'
+    }),
+  email: Joi.string()
+    .email()
+    .required()
+    .messages({
+      'string.email': 'El email debe tener un formato válido.',
+      'string.empty': 'El email es obligatorio.',
+      'any.required': 'El email es obligatorio.'
+    }),
+  rol: Joi.string()
+    .valid('Empleado', 'Administrador') // ← MISMO CAMBIO AQUÍ
+    .optional()
+    .messages({
+      'any.only': 'El rol debe ser: Empleado o Administrador.'
+    })
+});
+
+const obtenerUsuarioSchema = Joi.object({
+  id: Joi.number()
+    .integer()
+    .positive()
+    .optional()
+    .messages({
       'number.base': 'El ID debe ser un número.',
       'number.integer': 'El ID debe ser un número entero.',
       'number.positive': 'El ID debe ser mayor que 0.'
     })
 }).unknown(false);
 
+
 module.exports = {
   crearUsuarioSchema,
-  eliminarUsuarioSchema
+  eliminarUsuarioSchema,
+  actualizarUsuarioSchema,
+  obtenerUsuarioSchema
 };
