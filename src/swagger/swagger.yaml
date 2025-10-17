@@ -4,17 +4,10 @@ info:
   version: 1.0.0
   description: API para gestionar usuarios con login y 2FA offline
 servers:
-  - url: http://localhost:3000
+- url: http://localhost:3000
 
-
-tags:
-  - name: Proveedores
-    description: Operaciones para gestionar los proveedores
-# --- FIN DE AGREGA ESTO ---
-  - name: Clientes
-    description: Operaciones para gestionar los clientes
 paths:
- 
+
   /usuarios:
     post:
       summary: Obtiene un usuario por ID
@@ -48,9 +41,8 @@ paths:
                   rol:
                     type: string
                     example: usuario
-        '200':
+        '201':
           description: Usuario no encontrado
-
 
   /usuarios/nuevo:
     post:
@@ -70,7 +62,7 @@ paths:
                   type: string
                 rol:
                   type: string
-                  enum: [admin, editor, lector]
+                  enum: [ admin, editor, lector ]
       responses:
         '201':
           description: Usuario creado
@@ -94,12 +86,12 @@ paths:
                   type: string
                 rol:
                   type: string
-                  enum: [admin, editor, lector]
+                  enum: [ admin, editor, lector ]
               required:
-                - id
-                - nombre
-                - email
-                - rol
+              - id
+              - nombre
+              - email
+              - rol
       responses:
         '200':
           description: Usuario actualizado
@@ -123,10 +115,9 @@ paths:
                         type: string
                       rol:
                         type: string
-        '200':
+        '201':
           description: Usuario no encontrado
 
- 
   /usuarios/delete:
     delete:
       summary: Elimina un usuario enviando JSON con su ID
@@ -139,19 +130,17 @@ paths:
               properties:
                 id:
                   type: integer
-                  minimum: 1   # no permite negativos ni 0
+                  minimum: 1 # no permite negativos ni 0
                   description: ID del usuario (entero positivo)
               required:
-                - id
+              - id
       responses:
         '200':
           description: Usuario eliminado correctamente
-        '200':
+        '201':
           description: ID inválido
-        '200':
+        '202':
           description: Usuario no encontrado
-
-
 
   # --- Recuperación de contraseña ---
   /api/v1/forgot-password:
@@ -170,19 +159,19 @@ paths:
       responses:
         '200':
           description: Correo de restablecimiento enviado
-        '200':
+        '201':
           description: Usuario no encontrado
 
   /api/v1/reset-password/{token}:
     post:
       summary: Restablecer la contraseña con un token
       parameters:
-        - in: path
-          name: token
-          required: true
-          schema:
-            type: string
-          description: Token de restablecimiento
+      - in: path
+        name: token
+        required: true
+        schema:
+          type: string
+        description: Token de restablecimiento
       requestBody:
         required: true
         content:
@@ -195,7 +184,7 @@ paths:
       responses:
         '200':
           description: Contraseña actualizada
-        '200':
+        '201':
           description: Token inválido o expirado
 
   # --- Login online (sin 2FA) ---
@@ -226,7 +215,7 @@ paths:
                     type: string
                   userId:
                     type: integer
-        '200':
+        '201':
           description: Credenciales inválidas
 
   # --- Verificación 2FA offline (TOTP) ---
@@ -257,9 +246,9 @@ paths:
                     type: string
                   message:
                     type: string
-        '200':
+        '201':
           description: Código 2FA inválido o expirado
-          
+
   # --- Geolocation ---
   /api/v1/get-by-id:
     post:
@@ -275,7 +264,7 @@ paths:
                   type: integer
                   description: ID del usuario para obtener el historial de ubicaciones.
               required:
-                - userId
+              - userId
       responses:
         '200':
           description: Lista de ubicaciones para el usuario
@@ -295,177 +284,182 @@ paths:
                       format: date-time
                     action_id:
                       type: integer
-        '200':
+        '201':
           description: Falta el ID de usuario o es inválido.
         '500':
           description: Error interno del servidor
 
-
-# --- AGREGA TODO ESTE BLOQUE AL FINAL DE 'paths' ---
-  /api/v1/proveedores:
+  # --- Products ---
+  /api/v1/products:
     get:
-      summary: Obtiene la lista de todos los proveedores
-      tags: [Proveedores]
+      summary: Obtener listado COMPLETO de productos
+      tags: [ Productos ]
+      # ELIMINADO: Ya no hay sección 'parameters' aquí.
       responses:
         '200':
-          description: Lista de proveedores
+          description: Lista de productos completa.
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Proveedor'
+                  type: object
+                  properties:
+                    id_producto:
+                      type: integer
+                      example: 1
+                    codigo:
+                      type: string
+                      example: LAP-001
+                    nombre:
+                      type: string
+                      example: Laptop Empresarial X
+                    stock_actual:
+                      type: integer
+        '500':
+          description: Error interno del servidor
+
+  /api/v1/products/stock-alert:
+    get:
+      summary: Obtener listado de productos con alerta de stock (Stock_Actual < Stock_Mínimo)
+      tags: [ Productos ]
+      # Esta ruta dedicada realiza la función que antes tenía el query.
+      responses:
+        '200':
+          description: Lista de productos que requieren reposición.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id_producto:
+                      type: integer
+                    codigo:
+                      type: string
+                    stock_actual:
+                      type: integer
+                    stock_minimo:
+                      type: integer
+        '500':
+          description: Error interno del servidor
+
+  /api/v1/products/nuevo:
     post:
-      summary: Crea un nuevo proveedor
-      tags: [Proveedores]
+      summary: Crea un nuevo producto (Todos los campos requeridos excepto Descripción y Stock_Actual).
+      tags: [ Productos ]
       requestBody:
         required: true
         content:
           application/json:
             schema:
+              # Aquí se espera el cuerpo JSON con todos los datos
               type: object
               properties:
+                codigo:
+                  type: string
+                  maxLength: 20
+                  pattern: '^[a-zA-Z0-9]+$'
+                  example: LAP001
                 nombre:
                   type: string
-                  description: "Obligatorio, solo letras y espacios, max 100"
-                  example: "Logística Express"
-                telefono:
+                  maxLength: 100
+                  pattern: '^[a-zA-Z\s]+$'
+                  example: Laptop Empresarial
+                descripcion:
                   type: string
-                  description: "Obligatorio, solo números, 8-15 dígitos"
-                  example: "4181234567"
-                contacto:
+                  maxLength: 255
+                  example: Equipo con procesador i7 de 12va generación
+                  nullable: true
+                categoria:
                   type: string
-                  description: "Opcional, max 100"
-                  example: "Ana García"
-              required: [nombre, telefono]
+                  maxLength: 50
+                  example: Computadoras
+                unidad:
+                  type: string
+                  example: Pieza
+                stock_minimo:
+                  type: integer
+                  minimum: 0
+                  example: 5
+                stock_actual:
+                  type: integer
+                  minimum: 0
+                  example: 0
+              required:
+              - codigo
+              - nombre
+              - categoria
+              - unidad
+              - stock_minimo
       responses:
         '201':
-          description: Proveedor creado exitosamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Proveedor'
+          description: Producto creado exitosamente.
         '400':
-          description: Error de validación (ej. falta nombre, teléfono inválido)
-        '409':
-          description: Error de duplicado (mismo nombre y teléfono)
+          description: Datos inválidos o código duplicado.
 
-  # ... (Aquí va el /api/v1/proveedores de GET y POST que te di antes) ...
-
-  # --- RUTAS DE PROVEEDORES CON ID EN EL BODY ---
-  /api/v1/proveedores/detail:
-    post:
-      summary: Obtiene uno o más proveedores por ID o por Nombre
-      tags: [Proveedores]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                id_proveedor:
-                  type: integer
-                  example: 1
-                  description: "ID numérico del proveedor (opcional)"
-                nombre:
-                  type: string
-                  example: "Express"
-                  description: "Nombre o parte del nombre del proveedor (opcional)"
-              description: "Proporcionar al menos uno de los dos campos."
-      responses:
-        '200':
-          description: Datos del/los proveedor(es) encontrado(s)
-          content:
-            application/json:
-              schema:
-                # CAMBIO: Ahora es un array, no un objeto
-                type: array 
-                items:
-                  $ref: '#/components/schemas/Proveedor'
-        '400':
-          description: 'Error de validación (ej. faltan ambos campos)'
-        '404':
-          description: 'Proveedor no encontrado'
-
-
-
-          
-  /api/v1/proveedores/update:
+  /api/v1/products/update:
     put:
-      summary: Actualiza un proveedor existente
-      tags: [Proveedores]
+      summary: Actualiza un producto enviando su ID en el cuerpo JSON.
+      tags: [ Productos ]
       requestBody:
         required: true
         content:
           application/json:
             schema:
+              # Aquí se espera el cuerpo JSON con el ID_Producto
               type: object
               properties:
-                id_proveedor:
+                id_producto:
                   type: integer
+                  description: ID del producto a actualizar.
                   example: 1
-                nombre:
+                codigo:
                   type: string
-                  example: "Logística Express Editado"
-                telefono:
-                  type: string
-                  example: "4181234568"
-                contacto:
-                  type: string
-                  example: "Ana García G."
-              required: [id_proveedor]
+                  description: Nuevo código (opcional).
+                # ... (Otros campos de actualización)
+              required:
+              - id_producto
       responses:
         '200':
-          description: Proveedor actualizado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Proveedor'
-        '400':
-          description: Error de validación o falta el ID
+          description: Producto actualizado.
         '404':
-          description: Proveedor no encontrado
+          description: Producto no encontrado.
 
-  /api/v1/proveedores/delete:
+  /api/v1/products/delete:
     delete:
-      summary: Elimina un proveedor por su ID
-      tags: [Proveedores]
+      summary: Elimina un producto enviando su ID en el cuerpo JSON.
+      tags: [ Productos ]
       requestBody:
         required: true
         content:
           application/json:
             schema:
+              # Aquí se espera el cuerpo JSON con el ID_Producto
               type: object
               properties:
-                id_proveedor:
+                id_producto:
                   type: integer
+                  description: ID del producto a eliminar.
                   example: 1
-              required: [id_proveedor]
+              required:
+              - id_producto
       responses:
         '200':
-          description: Proveedor eliminado exitosamente
+          description: Producto eliminado.
+        '400':
+          description: El producto tiene movimientos de inventario asociados (FK conflict).
         '404':
-          description: Proveedor no encontrado
-        '409':
-          description: Conflicto (ej. no se puede borrar, tiene movimientos asociados)
-          # --- INICIO DEL BLOQUE PARA CLIENTES ---
-  /api/v1/clientes:
-    get:
-      summary: Obtiene la lista de todos los clientes
-      tags: [Clientes]
-      responses:
-        '200':
-          description: Lista de clientes
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Cliente'
+          description: Producto no encontrado.
+
+  # --- Registro Movimientos ---
+  /api/v1/movimientos/registrar:
     post:
-      summary: Crea un nuevo cliente
-      tags: [Clientes]
+      summary: Registra una Entrada o Salida de producto y actualiza el stock.
+      tags: [ Movimientos ]
+      security:
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -473,158 +467,69 @@ paths:
             schema:
               type: object
               properties:
-                nombre:
+                id_producto:
+                  type: integer
+                  example: 12
+                  description: ID del producto afectado.
+                tipo:
                   type: string
-                  description: "Obligatorio, solo letras y espacios, max 100"
-                  example: "Ana Sofía Martínez"
-                telefono:
+                  enum: [ Entrada, Salida ]
+                  example: Entrada
+                cantidad:
+                  type: integer
+                  minimum: 1
+                  example: 10
+                referencia:
                   type: string
-                  description: "Obligatorio, solo números, 8-15 dígitos"
-                  example: "4151234567"
-                contacto:
+                  maxLength: 50
+                  description: Número de factura o documento de soporte (opcional).
+                  nullable: true
+                responsable:
                   type: string
-                  description: "Opcional, max 100"
-                  example: "Gerente de Compras"
-              required: [nombre, telefono]
+                  maxLength: 80
+                  description: Nombre del responsable de la operación.
+                  example: Ana Lopez
+              required:
+              - id_producto
+              - tipo
+              - cantidad
+              - responsable
       responses:
         '201':
-          description: Cliente creado exitosamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Cliente'
+          description: Movimiento registrado y Stock_Actual actualizado con éxito.
         '400':
-          description: Error de validación (ej. falta nombre, teléfono inválido)
-        '409':
-          description: Error de duplicado (mismo nombre y teléfono)
+          description: Datos inválidos o Salida mayor al stock disponible.
+        '401':
+          description: No autorizado (Token inválido).
+        '403':
+          description: Prohibido (Rol no permitido).
 
-  /api/v1/clientes/detail:
+  /api/v1/movimientos/historial:
     post:
-      summary: Obtiene uno o más clientes por ID o por Nombre
-      tags: [Clientes]
+      summary: Obtiene el historial de movimientos para un producto específico, enviando el ID en el cuerpo JSON.
+      tags: [ Movimientos ]
+      security:
+      - bearerAuth: []
       requestBody:
+        # <-- Ahora usamos requestBody
         required: true
         content:
           application/json:
             schema:
               type: object
               properties:
-                id_cliente:
+                id_producto:
                   type: integer
-                  example: 1
-                  description: "ID numérico del cliente (opcional)"
-                nombre:
-                  type: string
-                  example: "Ana"
-                  description: "Nombre o parte del nombre del cliente (opcional)"
-              description: "Proporcionar al menos uno de los dos campos."
+                  minimum: 1
+                  example: 12
+                  description: El ID del producto a consultar.
+              required:
+              - id_producto
       responses:
         '200':
-          description: Datos del/los cliente(s) encontrado(s)
-          content:
-            application/json:
-              schema:
-                # CAMBIO: Ahora es un array
-                type: array
-                items:
-                  $ref: '#/components/schemas/Cliente'
-        '400':
-          description: 'Error de validación (ej. faltan ambos campos)'
+          description: Listado de movimientos históricos.
+          # ... (Definición del schema de respuesta)
+        '401':
+          description: No autorizado.
         '404':
-          description: 'Cliente no encontrado'
-
-  /api/v1/clientes/update:
-    put:
-      summary: Actualiza un cliente existente
-      tags: [Clientes]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                id_cliente:
-                  type: integer
-                  example: 1
-                nombre:
-                  type: string
-                  example: "Ana Sofía Rodríguez"
-                telefono:
-                  type: string
-                  example: "4151234568"
-                contacto:
-                  type: string
-                  example: "Directora de Compras"
-              required: [id_cliente]
-      responses:
-        '200':
-          description: Cliente actualizado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Cliente'
-        '400':
-          description: Error de validación o falta el ID
-        '404':
-          description: Cliente no encontrado
-        '409':
-          description: El nuevo nombre o teléfono ya está en uso
-
-  /api/v1/clientes/delete:
-    delete:
-      summary: Elimina un cliente por su ID
-      tags: [Clientes]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                id_cliente:
-                  type: integer
-                  example: 1
-              required: [id_cliente]
-      responses:
-        '200':
-          description: Cliente eliminado exitosamente
-        '404':
-          description: Cliente no encontrado
-        '409':
-          description: Conflicto (no se puede borrar, tiene movimientos asociados)
-# --- FIN DEL BLOQUE PARA CLIENTES ---
-# 'components' comienza aquí, SIN NINGUNA INDENTACIÓN
-components:
-  schemas:
-    Proveedor:
-      type: object
-      properties:
-        id_proveedor:
-          type: integer
-          example: 1
-        nombre:
-          type: string
-          example: "TecnoGlobal S.A."
-        telefono:
-          type: string
-          example: "5512345678"
-        contacto:
-          type: string
-          example: "Juan Pérez"
-
-    Cliente:
-      type: object
-      properties:
-        id_cliente:
-          type: integer
-          example: 1
-        nombre:
-          type: string
-          example: "Carlos Rodríguez"
-        telefono:
-          type: string
-          example: "4151112233"
-        contacto:
-          type: string
-          example: "Compras"
+          description: Producto no encontrado o sin movimientos.
