@@ -51,15 +51,11 @@ const actualizarProveedorSchema = Joi.object({
     'object.min': 'Debes proporcionar al menos un campo para actualizar.'
   });
 
+// Esquema para BUSCAR (ID o Nombre son opcionales)
 const buscarProveedorSchema = Joi.object({
   id_proveedor: Joi.number().integer().min(1).optional(),
   nombre: Joi.string().max(100).optional(),
-})
-  .or('id_proveedor', 'nombre') // Requiere que al menos uno de los dos exista
-  .messages({
-    'object.missing':
-      'Debes proporcionar un "id_proveedor" o un "nombre" para buscar.',
-  });
+});
 
 module.exports = {
   crearProveedorSchema,

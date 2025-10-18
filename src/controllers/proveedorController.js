@@ -83,20 +83,17 @@ exports.obtenerProveedores = async (req, res) => {
   }
 };
 
-
-// GET /api/proveedores/:id -> Obtener un proveedor por ID
+// POST /api/proveedores/detail -> Buscar proveedor por ID, Nombre o TODOS
 exports.obtenerProveedorPorId = async (req, res) => {
-  // 1. Validar la entrada con el nuevo esquema de búsqueda
   const { error, value } = buscarProveedorSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ message: error.details[0].message });
   }
 
-  const { id_proveedor, nombre } = value; // Usar 'value' de Joi
+  const { id_proveedor, nombre } = value;
 
   try {
-    // 2. Construir la consulta SQL dinámicamente
-    let queryText = 'SELECT * FROM proveedores WHERE';
+    let queryText = 'SELECT * FROM proveedores';
     const queryParams = [];
     const conditions = [];
 
@@ -106,24 +103,25 @@ exports.obtenerProveedorPorId = async (req, res) => {
     }
 
     if (nombre) {
-      // Usamos ILIKE y wildcards (%) para una búsqueda flexible
       queryParams.push(`%${nombre}%`);
       conditions.push(`nombre ILIKE $${queryParams.length}`);
     }
 
-    // 3. Unir las condiciones con 'OR'
-    queryText += ' ' + conditions.join(' OR ');
+    // --- LÓGICA MODIFICADA ---
+    if (conditions.length > 0) {
+      queryText += ' WHERE ' + conditions.join(' OR ');
+    }
+    
+    queryText += ' ORDER BY nombre ASC';
+    // --- FIN DE LA MODIFICACIÓN ---
 
-    // 4. Ejecutar la consulta
     const result = await db.query(queryText, queryParams);
 
-    if (result.rowCount === 0) {
+    if (result.rowCount === 0 && (id_proveedor || nombre)) {
       return res.status(404).json({ message: 'Proveedor no encontrado.' });
     }
 
-    // Devolvemos un array, ya que la búsqueda por nombre puede traer múltiples resultados
     res.status(200).json(result.rows);
-    
   } catch (error) {
     handleDbError(res, error);
   }
