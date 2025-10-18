@@ -40,5 +40,13 @@ router.delete(
     // authorize('admin', 'editor'), 
     productsController.deleteProduct
 );
+// 4. DAR DE BAJA PRODUCTO (PATCH /api/v1/products/deactivate)
+// Requiere autenticación y el rol de 'admin' o 'editor'.
+router.put(
+    '/status', 
+    // protect, 
+    // authorize('admin', 'editor'), 
+    productsController.changeProductStatus
+);
 
 module.exports = router;

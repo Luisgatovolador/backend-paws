@@ -671,7 +671,65 @@ paths:
           description: Proveedor no encontrado
         '409':
           description: Conflicto (ej. no se puede borrar, tiene movimientos asociados)
+  /api/v1/products/status:
+    put:
+      summary: Cambiar el estado de un producto (alta/baja) por ID o nombre
+      tags: [Productos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_producto:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: "Producto de ejemplo"
+                activo:
+                  type: integer
+                  enum: [0, 1]
+                  description: 1 = alta, 0 = baja
+              required: [activo]
+      responses:
+        '200':
+          description: Estado del producto actualizado correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Producto(s) actualizado(s) correctamente.
+                  products:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id_producto:
+                          type: integer
+                          example: 1
+                        nombre:
+                          type: string
+                          example: "Producto de ejemplo"
+                        activo:
+                          type: boolean
+                          example: true
+        '400':
+          description: Error de validación (falta de parámetros o activo inválido)
+        '404':
+          description: Producto no encontrado
+        '500':
+          description: Error interno del servidor
+
           # --- INICIO DEL BLOQUE PARA CLIENTES ---
+
   /api/v1/clientes:
     get:
       summary: Obtiene la lista de todos los clientes

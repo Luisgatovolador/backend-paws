@@ -250,3 +250,66 @@ exports.deleteProduct = async (req, res) => {
         });
     }
 };
+
+/**
+ * @desc Cambiar el estado activo de un producto (alta o baja) por ID o nombre.
+ * @route PATCH /api/v1/products/status
+ */
+exports.changeProductStatus = async (req, res) => {
+    const { id_producto, nombre, activo } = req.body;
+
+    if (activo === undefined || !(activo === 0 || activo === 1)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Debes indicar el estado activo: 1 (alta) o 0 (baja).'
+        });
+    }
+
+    if (!id_producto && !nombre) {
+        return res.status(400).json({
+            success: false,
+            message: 'Debes enviar al menos id_producto o nombre para identificar el producto.'
+        });
+    }
+
+    let query = 'UPDATE products SET activo = $1, updated_at = NOW() WHERE ';
+    let values = [activo];
+    let paramCount = 2;
+
+    if (id_producto) {
+        query += `id_producto = $${paramCount++}`;
+        values.push(id_producto);
+    } 
+    if (nombre) {
+        if (id_producto) query += ' OR ';
+        query += `nombre = $${paramCount++}`;
+        values.push(nombre);
+    }
+
+    query += ' RETURNING *;';
+
+    try {
+        const result = await db.query(query, values);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No se encontró ningún producto con los datos proporcionados.'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `Producto(s) actualizado(s) correctamente.`,
+            products: result.rows
+        });
+
+    } catch (error) {
+        console.error('Error al cambiar estado del producto:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor al actualizar el estado del producto.',
+            error: error.message
+        });
+    }
+};
