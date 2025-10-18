@@ -589,7 +589,7 @@ paths:
   # --- RUTAS DE PROVEEDORES CON ID EN EL BODY ---
   /api/v1/proveedores/detail:
     post:
-      summary: Obtiene uno o más proveedores por ID o por Nombre
+      summary: Obtiene proveedores por ID, Nombre, o todos si no hay filtros
       tags: [Proveedores]
       requestBody:
         required: true
@@ -598,6 +598,7 @@ paths:
             schema:
               type: object
               properties:
+                # --- ESTOS DOS CAMPOS DEBEN ESTAR PRESENTES ---
                 id_proveedor:
                   type: integer
                   example: 1
@@ -606,23 +607,10 @@ paths:
                   type: string
                   example: "Express"
                   description: "Nombre o parte del nombre del proveedor (opcional)"
-              description: "Proporcionar al menos uno de los dos campos."
+              description: "Proporcionar ID o nombre para filtrar. Enviar un objeto vacío {} para obtener todos los proveedores."
       responses:
         '200':
-          description: Datos del/los proveedor(es) encontrado(s)
-          content:
-            application/json:
-              schema:
-                # CAMBIO: Ahora es un array, no un objeto
-                type: array 
-                items:
-                  $ref: '#/components/schemas/Proveedor'
-        '400':
-          description: 'Error de validación (ej. faltan ambos campos)'
-        '404':
-          description: 'Proveedor no encontrado'
-
-
+          description: Lista de proveedores encontrados
 
           
   /api/v1/proveedores/update:
@@ -734,7 +722,7 @@ paths:
 
   /api/v1/clientes/detail:
     post:
-      summary: Obtiene uno o más clientes por ID o por Nombre
+      summary: Obtiene clientes por ID, Nombre, o todos si no hay filtros
       tags: [Clientes]
       requestBody:
         required: true
@@ -751,21 +739,10 @@ paths:
                   type: string
                   example: "Ana"
                   description: "Nombre o parte del nombre del cliente (opcional)"
-              description: "Proporcionar al menos uno de los dos campos."
+              description: "Proporcionar ID o nombre para filtrar. Enviar un objeto vacío {} para obtener todos los clientes."
       responses:
         '200':
-          description: Datos del/los cliente(s) encontrado(s)
-          content:
-            application/json:
-              schema:
-                # CAMBIO: Ahora es un array
-                type: array
-                items:
-                  $ref: '#/components/schemas/Cliente'
-        '400':
-          description: 'Error de validación (ej. faltan ambos campos)'
-        '404':
-          description: 'Cliente no encontrado'
+          description: Lista de clientes encontrados
 
   /api/v1/clientes/update:
     put:

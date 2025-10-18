@@ -52,16 +52,11 @@ const actualizarClienteSchema = Joi.object({
 
 
   // Esquema para BUSCAR (ID o Nombre son opcionales, pero se requiere uno)
+// Esquema para BUSCAR (ID o Nombre son opcionales)
 const buscarClienteSchema = Joi.object({
   id_cliente: Joi.number().integer().min(1).optional(),
   nombre: Joi.string().max(100).optional(),
-})
-  .or('id_cliente', 'nombre') // Requiere que al menos uno de los dos exista
-  .messages({
-    'object.missing':
-      'Debes proporcionar un "id_cliente" o un "nombre" para buscar.',
-  });
-
+});
 
 module.exports = {
   crearClienteSchema,

@@ -69,19 +69,17 @@ exports.obtenerClientes = async (req, res) => {
 
 // Obtener un cliente por ID
 // MODIFICA ESTA FUNCIÓN
-// POST /api/v1/clientes/detail -> Buscar cliente por ID o Nombre
+// POST /api/v1/clientes/detail -> Buscar cliente por ID, Nombre o TODOS
 exports.obtenerClientePorId = async (req, res) => {
-  // 1. Validar la entrada con el nuevo esquema de búsqueda
   const { error, value } = buscarClienteSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ message: error.details[0].message });
   }
 
-  const { id_cliente, nombre } = value; // Usar 'value' de Joi
+  const { id_cliente, nombre } = value;
 
   try {
-    // 2. Construir la consulta SQL dinámicamente
-    let queryText = 'SELECT * FROM clientes WHERE';
+    let queryText = 'SELECT * FROM clientes';
     const queryParams = [];
     const conditions = [];
 
@@ -91,24 +89,28 @@ exports.obtenerClientePorId = async (req, res) => {
     }
 
     if (nombre) {
-      // Usamos ILIKE y wildcards (%) para una búsqueda flexible
       queryParams.push(`%${nombre}%`);
       conditions.push(`nombre ILIKE $${queryParams.length}`);
     }
 
-    // 3. Unir las condiciones con 'OR'
-    queryText += ' ' + conditions.join(' OR ');
+    // --- LÓGICA MODIFICADA ---
+    // Solo añade WHERE si hay condiciones de búsqueda
+    if (conditions.length > 0) {
+      queryText += ' WHERE ' + conditions.join(' OR ');
+    }
 
-    // 4. Ejecutar la consulta
+    queryText += ' ORDER BY nombre ASC'; // Opcional, pero bueno para ordenar
+    // --- FIN DE LA MODIFICACIÓN ---
+
     const result = await db.query(queryText, queryParams);
 
-    if (result.rowCount === 0) {
+    // Solo devuelve 404 si el usuario buscó algo y no se encontró.
+    // Si no buscó nada (id y nombre vacíos) y la tabla está vacía, devuelve [].
+    if (result.rowCount === 0 && (id_cliente || nombre)) {
       return res.status(404).json({ message: 'Cliente no encontrado.' });
     }
 
-    // Devolvemos un array, ya que la búsqueda por nombre puede traer múltiples resultados
     res.status(200).json(result.rows);
-
   } catch (error) {
     handleDbError(res, error);
   }
