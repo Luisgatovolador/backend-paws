@@ -533,3 +533,332 @@ paths:
           description: No autorizado.
         '404':
           description: Producto no encontrado o sin movimientos.
+
+
+# --- AGREGA TODO ESTE BLOQUE AL FINAL DE 'paths' ---
+  /api/v1/proveedores:
+    get:
+      summary: Obtiene la lista de todos los proveedores
+      tags: [Proveedores]
+      responses:
+        '200':
+          description: Lista de proveedores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Proveedor'
+    post:
+      summary: Crea un nuevo proveedor
+      tags: [Proveedores]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombre:
+                  type: string
+                  description: "Obligatorio, solo letras y espacios, max 100"
+                  example: "Logística Express"
+                telefono:
+                  type: string
+                  description: "Obligatorio, solo números, 8-15 dígitos"
+                  example: "4181234567"
+                contacto:
+                  type: string
+                  description: "Opcional, max 100"
+                  example: "Ana García"
+              required: [nombre, telefono]
+      responses:
+        '201':
+          description: Proveedor creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proveedor'
+        '400':
+          description: Error de validación (ej. falta nombre, teléfono inválido)
+        '409':
+          description: Error de duplicado (mismo nombre y teléfono)
+
+  # ... (Aquí va el /api/v1/proveedores de GET y POST que te di antes) ...
+
+  # --- RUTAS DE PROVEEDORES CON ID EN EL BODY ---
+  /api/v1/proveedores/detail:
+    post:
+      summary: Obtiene uno o más proveedores por ID o por Nombre
+      tags: [Proveedores]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_proveedor:
+                  type: integer
+                  example: 1
+                  description: "ID numérico del proveedor (opcional)"
+                nombre:
+                  type: string
+                  example: "Express"
+                  description: "Nombre o parte del nombre del proveedor (opcional)"
+              description: "Proporcionar al menos uno de los dos campos."
+      responses:
+        '200':
+          description: Datos del/los proveedor(es) encontrado(s)
+          content:
+            application/json:
+              schema:
+                # CAMBIO: Ahora es un array, no un objeto
+                type: array 
+                items:
+                  $ref: '#/components/schemas/Proveedor'
+        '400':
+          description: 'Error de validación (ej. faltan ambos campos)'
+        '404':
+          description: 'Proveedor no encontrado'
+
+
+
+          
+  /api/v1/proveedores/update:
+    put:
+      summary: Actualiza un proveedor existente
+      tags: [Proveedores]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_proveedor:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: "Logística Express Editado"
+                telefono:
+                  type: string
+                  example: "4181234568"
+                contacto:
+                  type: string
+                  example: "Ana García G."
+              required: [id_proveedor]
+      responses:
+        '200':
+          description: Proveedor actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proveedor'
+        '400':
+          description: Error de validación o falta el ID
+        '404':
+          description: Proveedor no encontrado
+
+  /api/v1/proveedores/delete:
+    delete:
+      summary: Elimina un proveedor por su ID
+      tags: [Proveedores]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_proveedor:
+                  type: integer
+                  example: 1
+              required: [id_proveedor]
+      responses:
+        '200':
+          description: Proveedor eliminado exitosamente
+        '404':
+          description: Proveedor no encontrado
+        '409':
+          description: Conflicto (ej. no se puede borrar, tiene movimientos asociados)
+          # --- INICIO DEL BLOQUE PARA CLIENTES ---
+  /api/v1/clientes:
+    get:
+      summary: Obtiene la lista de todos los clientes
+      tags: [Clientes]
+      responses:
+        '200':
+          description: Lista de clientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cliente'
+    post:
+      summary: Crea un nuevo cliente
+      tags: [Clientes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombre:
+                  type: string
+                  description: "Obligatorio, solo letras y espacios, max 100"
+                  example: "Ana Sofía Martínez"
+                telefono:
+                  type: string
+                  description: "Obligatorio, solo números, 8-15 dígitos"
+                  example: "4151234567"
+                contacto:
+                  type: string
+                  description: "Opcional, max 100"
+                  example: "Gerente de Compras"
+              required: [nombre, telefono]
+      responses:
+        '201':
+          description: Cliente creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '400':
+          description: Error de validación (ej. falta nombre, teléfono inválido)
+        '409':
+          description: Error de duplicado (mismo nombre y teléfono)
+
+  /api/v1/clientes/detail:
+    post:
+      summary: Obtiene uno o más clientes por ID o por Nombre
+      tags: [Clientes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_cliente:
+                  type: integer
+                  example: 1
+                  description: "ID numérico del cliente (opcional)"
+                nombre:
+                  type: string
+                  example: "Ana"
+                  description: "Nombre o parte del nombre del cliente (opcional)"
+              description: "Proporcionar al menos uno de los dos campos."
+      responses:
+        '200':
+          description: Datos del/los cliente(s) encontrado(s)
+          content:
+            application/json:
+              schema:
+                # CAMBIO: Ahora es un array
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cliente'
+        '400':
+          description: 'Error de validación (ej. faltan ambos campos)'
+        '404':
+          description: 'Cliente no encontrado'
+
+  /api/v1/clientes/update:
+    put:
+      summary: Actualiza un cliente existente
+      tags: [Clientes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_cliente:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: "Ana Sofía Rodríguez"
+                telefono:
+                  type: string
+                  example: "4151234568"
+                contacto:
+                  type: string
+                  example: "Directora de Compras"
+              required: [id_cliente]
+      responses:
+        '200':
+          description: Cliente actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '400':
+          description: Error de validación o falta el ID
+        '404':
+          description: Cliente no encontrado
+        '409':
+          description: El nuevo nombre o teléfono ya está en uso
+
+  /api/v1/clientes/delete:
+    delete:
+      summary: Elimina un cliente por su ID
+      tags: [Clientes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_cliente:
+                  type: integer
+                  example: 1
+              required: [id_cliente]
+      responses:
+        '200':
+          description: Cliente eliminado exitosamente
+        '404':
+          description: Cliente no encontrado
+        '409':
+          description: Conflicto (no se puede borrar, tiene movimientos asociados)
+# --- FIN DEL BLOQUE PARA CLIENTES ---
+# 'components' comienza aquí, SIN NINGUNA INDENTACIÓN
+components:
+  schemas:
+    Proveedor:
+      type: object
+      properties:
+        id_proveedor:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: "TecnoGlobal S.A."
+        telefono:
+          type: string
+          example: "5512345678"
+        contacto:
+          type: string
+          example: "Juan Pérez"
+
+    Cliente:
+      type: object
+      properties:
+        id_cliente:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: "Carlos Rodríguez"
+        telefono:
+          type: string
+          example: "4151112233"
+        contacto:
+          type: string
+          example: "Compras"
