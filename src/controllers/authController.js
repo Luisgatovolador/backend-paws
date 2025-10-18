@@ -219,6 +219,12 @@ exports.verifyCode = async (req, res) => {
             return res.status(401).json({ message: 'Código inválido o expirado.' });
         }
 
+
+        // AQUÍ: Actualiza la base de datos para marcar al usuario como logueado.
+        await db.query('UPDATE usuarios SET is_logged_in = TRUE WHERE id = $1', [userId]);
+
+     
+
         // Generar JWT
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
@@ -239,6 +245,27 @@ exports.verifyCode = async (req, res) => {
 
     } catch (error) {
         console.error('Error en verifyCode:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+};
+
+
+// --- Función para Cerrar Sesión (Logout) ---
+exports.logout = async (req, res) => {
+    // El 'req.user.id' es añadido por un middleware de autenticación que verifica el JWT.
+    const userId = req.user.id; 
+
+    if (!userId) {
+        return res.status(400).json({ message: "No se pudo identificar al usuario desde el token." });
+    }
+
+    try {
+        // Actualiza la base de datos para marcar al usuario como NO logueado.
+        await db.query('UPDATE usuarios SET is_logged_in = FALSE WHERE id = $1', [userId]);
+
+        res.status(200).json({ message: 'Sesión cerrada exitosamente.' });
+    } catch (error) {
+        console.error('Error en logout:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
