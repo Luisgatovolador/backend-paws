@@ -8,6 +8,8 @@ const YAML = require('yamljs');
 const usuariosRouter = require('./routes/usuarios');
 const authRouter = require('./routes/auth');
 const locatioRouter = require('./routes/location');
+const alertasRouter = require('./routes/alertas')
+
 
 const productsRouter = require('./routes/products');
 const movimientosRoutes = require('./routes/movimientos');
@@ -51,6 +53,9 @@ app.use('/api/v1',locatioRouter);
 
 app.use('/api/v1/proveedores', proveedoresRouter);
 app.use('/api/v1/clientes', clientesRouter);
+app.use('/api/v1/alertas', alertasRouter); // 2. Usa
+
+
 
 app.use('/api/v1/products',productsRouter);
 app.use('/api/v1/movimientos', movimientosRoutes);

@@ -862,6 +862,23 @@ paths:
           description: Cliente no encontrado
         '409':
           description: Conflicto (no se puede borrar, tiene movimientos asociados)
+
+  /api/v1/alertas/probar-envio:
+    post:
+      summary: (PRUEBA) Fuerza el envío del correo de alerta de bajo stock
+      tags: [Alertas] # (Crea una nueva tag 'Alertas' si no existe)
+      responses:
+        '200':
+          description: "La revisión se ejecutó."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
 # --- FIN DEL BLOQUE PARA CLIENTES ---
 # 'components' comienza aquí, SIN NINGUNA INDENTACIÓN
 components:
