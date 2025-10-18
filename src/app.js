@@ -8,7 +8,7 @@ const YAML = require('yamljs');
 const usuariosRouter = require('./routes/usuarios');
 const authRouter = require('./routes/auth');
 const locatioRouter = require('./routes/location');
-
+const alertasRouter = require('./routes/alertas')
 
 // --- 1. AÑADE LA IMPORTACIÓN DE LA NUEVA RUTA AQUÍ ---
 const proveedoresRouter = require('./routes/proveedores');
@@ -50,6 +50,9 @@ app.use('/api/v1',locatioRouter);
 
 app.use('/api/v1/proveedores', proveedoresRouter);
 app.use('/api/v1/clientes', clientesRouter);
+app.use('/api/v1/alertas', alertasRouter); // 2. Usa
+
+
 
 // Swagger
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger/swagger.yaml'));
