@@ -1,99 +1,151 @@
 'use strict';
 const db = require('../db/index'); 
 const { createMovimientoSchema, getMovimientosByProductSchema } = require('../validators/movimientoValidators');
+const { notificationEmptyStock } = require('../services/emailService'); // Importación necesaria
 
 /**
  * @desc Registra una Entrada o Salida de inventario y actualiza el Stock_Actual del producto.
  * @route POST /api/v1/movimientos/registrar
  * @access Private (admin, editor)
  */
-exports.registerMovement = async (req, res) => {
+exports.registerMovement = async (req, res, next) => {
     const { error, value } = createMovimientoSchema.validate(req.body);
 
     if (error) {
         return res.status(400).json({ 
             success: false, 
-            message: 'Datos de entrada inválidos para el movimiento.',
+            message: 'Datos de entrada inválidos.',
             details: error.details[0].message
         });
     }
 
-    const { id_producto, tipo, cantidad, referencia, responsable } = value;
+    // Renombramos IDs para evitar errores de inicialización/scope.
+    const { tipo, cantidad, referencia, responsable, 
+            id_producto: productoId, id_proveedor: proveedorId, id_cliente: clienteId, id_usuario: usuarioId } = value;
+
+    // A. VALIDACIÓN ESTRICTA DE TRAZABILIDAD Y RESPONSABLES
     
-    const client = await db.connect(); 
+    // 1. Validar id_usuario (Obligatorio para cualquier movimiento)
+    if (!usuarioId || usuarioId <= 0) {
+        return res.status(440).json({ success: false, message: 'El campo id_usuario es obligatorio y debe ser un ID válido del responsable de la operación.' });
+    }
+
+    // 2. Validar id_proveedor (Obligatorio si es Entrada)
+    if (tipo === 'Entrada') {
+        if (!proveedorId || proveedorId <= 0) {
+            return res.status(400).json({ success: false, message: 'Para un movimiento de tipo "Entrada", el campo id_proveedor es obligatorio y debe ser un ID válido.' });
+        }
+        // Aseguramos que id_cliente sea NULL para Entrada
+        if (clienteId && clienteId > 0) {
+             return res.status(400).json({ success: false, message: 'Para un movimiento de tipo "Entrada", el campo id_cliente debe ser nulo o no estar presente.' });
+        }
+    }
+    
+    // 3. Validar id_cliente (Obligatorio si es Salida)
+    if (tipo === 'Salida') {
+        if (!clienteId || clienteId <= 0) {
+            return res.status(400).json({ success: false, message: 'Para un movimiento de tipo "Salida", el campo id_cliente es obligatorio y debe ser un ID válido.' });
+        }
+        // Aseguramos que id_proveedor sea NULL para Salida
+        if (proveedorId && proveedorId > 0) {
+             return res.status(400).json({ success: false, message: 'Para un movimiento de tipo "Salida", el campo id_proveedor debe ser nulo o no estar presente.' });
+        }
+    }
+    
+    // CORRECCIÓN CLAVE: Usamos db.connect() para obtener un cliente del Pool para la transacción.
+    const client = await db.connect();
 
     try {
-        await client.query('BEGIN'); 
+        await client.query('BEGIN');
 
-        const productQuery = 'SELECT stock_actual FROM products WHERE id_producto = $1 FOR UPDATE';
-        const productResult = await client.query(productQuery, [id_producto]);
+        // 1. Obtener datos del producto y bloquear la fila (FOR UPDATE)
+        const productQuery = `
+            SELECT nombre, stock_actual, stock_minimo
+            FROM products
+            WHERE id_producto = $1
+            FOR UPDATE;
+        `;
+        const productResult = await client.query(productQuery, [productoId]);
 
         if (productResult.rowCount === 0) {
             await client.query('ROLLBACK');
-            return res.status(404).json({ success: false, message: 'Producto no encontrado.' });
+            return res.status(404).json({ success: false, message: `Producto con ID ${productoId} no encontrado.` });
         }
 
-        const currentStock = productResult.rows[0].stock_actual;
-        let stockUpdateQuery;
+        const { nombre: productName, stock_actual: currentStock, stock_minimo: minStock } = productResult.rows[0];
+        let newStock;
 
         if (tipo === 'Entrada') {
-            stockUpdateQuery = 'UPDATE products SET stock_actual = stock_actual + $1 WHERE id_producto = $2 RETURNING stock_actual';
+            newStock = currentStock + cantidad;
+
         } else if (tipo === 'Salida') {
+            // Validar stock antes de restar 
             if (currentStock < cantidad) {
                 await client.query('ROLLBACK');
-                return res.status(400).json({ 
-                    success: false, 
-                    message: `Salida denegada. Stock actual (${currentStock}) es insuficiente para la cantidad solicitada (${cantidad}).`
-                });
+                return res.status(400).json({ success: false, message: `Stock insuficiente. Stock actual: ${currentStock}, Cantidad a retirar: ${cantidad}.` });
             }
-            stockUpdateQuery = 'UPDATE products SET stock_actual = stock_actual - $1 WHERE id_producto = $2 RETURNING stock_actual';
+            newStock = currentStock - cantidad; // Calculamos el newStock solo para el feedback y la alerta
         }
-        
-        const updateResult = await client.query(stockUpdateQuery, [cantidad, id_producto]);
-        
-        const movementQuery = `
-            INSERT INTO movimientos (tipo, id_producto, cantidad, referencia, responsable, fecha)
-            VALUES ($1, $2, $3, $4, $5, NOW())
+
+        // 2. Insertar el movimiento
+        // NOTA: El trigger de PostgreSQL se encargará de actualizar la tabla 'products'
+        const movimientoQuery = `
+            INSERT INTO movimientos (fecha, tipo, id_producto, cantidad, referencia, responsable, id_proveedor, id_cliente, id_usuario)
+            VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *;
         `;
-        const movementValues = [tipo, id_producto, cantidad, referencia || null, responsable];
-        const movementResult = await client.query(movementQuery, movementValues);
+        
+        const idProveedorFinal = tipo === 'Entrada' ? proveedorId : null;
+        const idClienteFinal = tipo === 'Salida' ? clienteId : null;
+        
+        const movimientoValues = [
+            tipo,
+            productoId, 
+            cantidad,
+            referencia || null, 
+            responsable,
+            idProveedorFinal, 
+            idClienteFinal,   
+            usuarioId         
+        ];
 
-        await client.query('COMMIT'); 
+        const movimientoResult = await client.query(movimientoQuery, movimientoValues);
+        
+        // 3. Integración del Email de Alerta (Revisar stock después de la Salida)
+        // Usamos newStock (calculado localmente) para el chequeo de la alerta
+        if (tipo === 'Salida' && newStock < minStock) {
+            console.log(`[ALERT] El stock de ${productName} (${newStock}) es inferior al mínimo (${minStock}). Enviando alerta...`);
+            notificationEmptyStock(productoId, productName, responsable) 
+                .catch(err => console.error("Fallo al enviar el email de alerta:", err.message));
+        }
 
+        // 4. Commit de la transacción
+        // El COMMIT finaliza la transacción e inmediatamente después el trigger ejecuta la actualización final.
+        await client.query('COMMIT');
+        
         return res.status(201).json({
             success: true,
-            message: `Movimiento de ${tipo} registrado. Nuevo stock: ${updateResult.rows[0].stock_actual}`,
-            movimiento: movementResult.rows[0]
+            message: `Movimiento de ${tipo} registrado exitosamente. Nuevo stock (estimado): ${newStock}`,
+            movimiento: movimientoResult.rows[0],
+            alert_sent: tipo === 'Salida' && newStock < minStock 
         });
 
     } catch (error) {
-        if (client) { 
-            await client.query('ROLLBACK'); 
+        await client.query('ROLLBACK');
+        console.error('Error durante la transacción de movimiento:', error.message);
+        if (error.code === '23503') { // Clave foránea violada
+             return res.status(400).json({ success: false, message: 'Fallo de trazabilidad: El ID del cliente o proveedor no existe.' });
         }
-        
-        console.error('Error al registrar movimiento transaccional:', error);
-        
-        if (error.code === '23503') { 
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Error de integridad: El ID de producto proporcionado no existe.',
-                error: error.detail
-            });
-        }
-        
         return res.status(500).json({ 
             success: false, 
-            message: 'Error interno del servidor al procesar el movimiento.',
+            message: 'Error interno del servidor al registrar el movimiento.',
             error: error.message 
         });
     } finally {
-        if (client) { 
-            client.release(); 
-        }
+        // MUY IMPORTANTE: Liberar el cliente al pool
+        client.release();
     }
 };
-
 /**
  * @desc Obtiene el historial de movimientos de un producto.
  * @route POST /api/v1/movimientos/historial
@@ -153,5 +205,37 @@ exports.getMovimientosByProduct = async (req, res) => {
         if (client) {
             client.release(); // Liberar el cliente al pool
         }
+    }
+};
+
+/**
+ * @desc Obtiene la lista de alertas de stock registradas en la bitácora.
+ * @route GET /api/v1/products/stock-alert
+ * @access Private (admin, editor)
+ */
+exports.getStockAlerts = async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                sa.id_alerta, 
+                sa.fecha_alerta, 
+                p.id_producto,
+                p.nombre AS product_name,
+                p.codigo
+            FROM stock_alerts sa
+            JOIN products p ON sa.id_producto = p.id_producto
+            ORDER BY sa.fecha_alerta DESC;
+        `;
+        const result = await db.query(query);
+
+        return res.status(200).json({
+            success: true,
+            data: result.rows,
+            count: result.rowCount
+        });
+
+    } catch (error) {
+        console.error('Error al obtener alertas de stock:', error);
+        return res.status(500).json({ success: false, message: 'Error interno del servidor al obtener las alertas.' });
     }
 };
