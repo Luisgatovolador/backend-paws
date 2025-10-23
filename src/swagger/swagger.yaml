@@ -323,7 +323,6 @@ paths:
     get:
       summary: Obtener listado de productos con alerta de stock (Stock_Actual < Stock_Mínimo)
       tags: [ Productos ]
-      # Esta ruta dedicada realiza la función que antes tenía el query.
       responses:
         '200':
           description: Lista de productos que requieren reposición.
@@ -534,12 +533,11 @@ paths:
         '404':
           description: Producto no encontrado o sin movimientos.
 
-
-# --- AGREGA TODO ESTE BLOQUE AL FINAL DE 'paths' ---
+  # --- AGREGA TODO ESTE BLOQUE AL FINAL DE 'paths' ---
   /api/v1/proveedores:
     get:
       summary: Obtiene la lista de todos los proveedores
-      tags: [Proveedores]
+      tags: [ Proveedores ]
       responses:
         '200':
           description: Lista de proveedores
@@ -551,7 +549,7 @@ paths:
                   $ref: '#/components/schemas/Proveedor'
     post:
       summary: Crea un nuevo proveedor
-      tags: [Proveedores]
+      tags: [ Proveedores ]
       requestBody:
         required: true
         content:
@@ -571,7 +569,7 @@ paths:
                   type: string
                   description: "Opcional, max 100"
                   example: "Ana García"
-              required: [nombre, telefono]
+              required: [ nombre, telefono ]
       responses:
         '201':
           description: Proveedor creado exitosamente
@@ -590,7 +588,7 @@ paths:
   /api/v1/proveedores/detail:
     post:
       summary: Obtiene uno o más proveedores por ID o por Nombre
-      tags: [Proveedores]
+      tags: [ Proveedores ]
       requestBody:
         required: true
         content:
@@ -614,7 +612,7 @@ paths:
             application/json:
               schema:
                 # CAMBIO: Ahora es un array, no un objeto
-                type: array 
+                type: array
                 items:
                   $ref: '#/components/schemas/Proveedor'
         '400':
@@ -622,13 +620,10 @@ paths:
         '404':
           description: 'Proveedor no encontrado'
 
-
-
-          
   /api/v1/proveedores/update:
     put:
       summary: Actualiza un proveedor existente
-      tags: [Proveedores]
+      tags: [ Proveedores ]
       requestBody:
         required: true
         content:
@@ -648,7 +643,7 @@ paths:
                 contacto:
                   type: string
                   example: "Ana García G."
-              required: [id_proveedor]
+              required: [ id_proveedor ]
       responses:
         '200':
           description: Proveedor actualizado
@@ -664,7 +659,7 @@ paths:
   /api/v1/proveedores/delete:
     delete:
       summary: Elimina un proveedor por su ID
-      tags: [Proveedores]
+      tags: [ Proveedores ]
       requestBody:
         required: true
         content:
@@ -675,7 +670,7 @@ paths:
                 id_proveedor:
                   type: integer
                   example: 1
-              required: [id_proveedor]
+              required: [ id_proveedor ]
       responses:
         '200':
           description: Proveedor eliminado exitosamente
@@ -687,7 +682,7 @@ paths:
   /api/v1/clientes:
     get:
       summary: Obtiene la lista de todos los clientes
-      tags: [Clientes]
+      tags: [ Clientes ]
       responses:
         '200':
           description: Lista de clientes
@@ -699,7 +694,7 @@ paths:
                   $ref: '#/components/schemas/Cliente'
     post:
       summary: Crea un nuevo cliente
-      tags: [Clientes]
+      tags: [ Clientes ]
       requestBody:
         required: true
         content:
@@ -719,7 +714,7 @@ paths:
                   type: string
                   description: "Opcional, max 100"
                   example: "Gerente de Compras"
-              required: [nombre, telefono]
+              required: [ nombre, telefono ]
       responses:
         '201':
           description: Cliente creado exitosamente
@@ -735,7 +730,7 @@ paths:
   /api/v1/clientes/detail:
     post:
       summary: Obtiene uno o más clientes por ID o por Nombre
-      tags: [Clientes]
+      tags: [ Clientes ]
       requestBody:
         required: true
         content:
@@ -770,7 +765,7 @@ paths:
   /api/v1/clientes/update:
     put:
       summary: Actualiza un cliente existente
-      tags: [Clientes]
+      tags: [ Clientes ]
       requestBody:
         required: true
         content:
@@ -790,7 +785,7 @@ paths:
                 contacto:
                   type: string
                   example: "Directora de Compras"
-              required: [id_cliente]
+              required: [ id_cliente ]
       responses:
         '200':
           description: Cliente actualizado
@@ -808,7 +803,7 @@ paths:
   /api/v1/clientes/delete:
     delete:
       summary: Elimina un cliente por su ID
-      tags: [Clientes]
+      tags: [ Clientes ]
       requestBody:
         required: true
         content:
@@ -819,7 +814,7 @@ paths:
                 id_cliente:
                   type: integer
                   example: 1
-              required: [id_cliente]
+              required: [ id_cliente ]
       responses:
         '200':
           description: Cliente eliminado exitosamente
