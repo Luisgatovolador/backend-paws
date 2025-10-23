@@ -27,6 +27,5 @@ router.post(
     movimientosController.getMovimientosByProduct
 );
 
-
 // Exportar el router
 module.exports = router;
