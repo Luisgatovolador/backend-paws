@@ -57,7 +57,12 @@ const createMovimientoSchema = Joi.object({
             'string.base': 'El responsable debe ser una cadena de texto.',
             'string.max': 'El responsable no debe exceder 80 caracteres.',
             'string.pattern.base': 'El nombre del responsable solo puede contener letras y espacios.'
-        })
+        }),
+
+    id_proveedor: Joi.number().integer().positive().allow(null).optional(),
+    id_cliente: Joi.number().integer().positive().allow(null).optional(),
+    // id_usuario es clave para saber quién ejecutó la operación
+    id_usuario: Joi.number().integer().positive().required() 
 });
 
 // Esquema para obtener movimientos de un producto (GET /api/v1/movimientos/:id_producto)
