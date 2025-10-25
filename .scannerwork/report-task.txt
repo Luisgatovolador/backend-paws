@@ -3,5 +3,5 @@ projectKey=Luisgatovolador_backend-paws
 serverUrl=https://sonarcloud.io
 serverVersion=8.0.0.69167
 dashboardUrl=https://sonarcloud.io/dashboard?id=Luisgatovolador_backend-paws
-ceTaskId=AZoZgAI1IimL18TiZNGD
-ceTaskUrl=https://sonarcloud.io/api/ce/task?id=AZoZgAI1IimL18TiZNGD
+ceTaskId=AZoZm9MjNEvDcabk6fIW
+ceTaskUrl=https://sonarcloud.io/api/ce/task?id=AZoZm9MjNEvDcabk6fIW
