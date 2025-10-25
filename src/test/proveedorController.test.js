@@ -1,154 +1,223 @@
-// src/test/proveedorController.test.js
-const proveedorController = require('../controllers/proveedorController');
-const db = require('../db/index');
+const request = require('supertest');
+const express = require('express');
+const bodyParser = require('body-parser');
 
-jest.mock('../db/index'); // Mock de la base de datos
+jest.mock('../db/index', () => ({
+  query: jest.fn(),
+  connect: jest.fn().mockResolvedValue(true),
+}));
+
+const db = require('../db/index');
+const proveedorController = require('../controllers/proveedorController');
+
+const app = express();
+app.use(bodyParser.json());
+
+// Rutas
+app.post('/api/proveedores', proveedorController.crearProveedor);
+app.get('/api/proveedores', proveedorController.obtenerProveedores);
+app.post('/api/proveedores/detail', proveedorController.obtenerProveedorPorId);
+app.put('/api/proveedores/update', proveedorController.actualizarProveedor);
+app.delete('/api/proveedores/delete', proveedorController.eliminarProveedor);
+
+// Evitar logs en tests
+beforeAll(() => {
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterAll(() => {
+  jest.restoreAllMocks();
+});
 
 describe('Proveedor Controller', () => {
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  // --- CREAR PROVEEDOR ---
+  it('debe crear un proveedor correctamente', async () => {
+    // 1. Validación duplicados
+    db.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+    // 2. Insert
+    db.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ id_proveedor: 1, nombre: 'Proveedor 1', telefono: '12345678', contacto: 'Contacto 1' }]
+    });
+
+    const res = await request(app).post('/api/proveedores').send({
+      nombre: 'Proveedor 1',
+      telefono: '12345678',
+      contacto: 'Contacto 1'
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.nombre).toBe('Proveedor 1');
   });
 
-  describe('crearProveedor', () => {
-    it('debería crear un proveedor exitosamente', async () => {
-      const req = {
-        body: { nombre: 'Proveedor1', telefono: '12345678', contacto: 'Contacto1' }
-      };
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-
-      // No hay duplicados, inserción exitosa
-      db.query
-        .mockResolvedValueOnce({ rowCount: 0, rows: [] })
-        .mockResolvedValueOnce({ rowCount: 1, rows: [req.body] });
-
-      await proveedorController.crearProveedor(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith(req.body);
+  it('debe devolver 409 si el nombre ya existe', async () => {
+    db.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ nombre: 'Proveedor 1', telefono: '12345678' }]
     });
 
-    it('debería devolver error si nombre duplicado', async () => {
-      const req = { body: { nombre: 'Proveedor1', telefono: '87654321', contacto: 'Contacto' } };
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-
-      db.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ nombre: 'Proveedor1', telefono: '11111111' }] });
-
-      await proveedorController.crearProveedor(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(409);
-      expect(res.json).toHaveBeenCalledWith({ message: 'Error: Ya existe un proveedor con el nombre "Proveedor1".' });
+    const res = await request(app).post('/api/proveedores').send({
+      nombre: 'Proveedor 1',
+      telefono: '22222222'
     });
 
-    it('debería devolver error si teléfono duplicado', async () => {
-      const req = { body: { nombre: 'Proveedor2', telefono: '12345678', contacto: 'Contacto' } };
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-
-      db.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ nombre: 'Otro', telefono: '12345678' }] });
-
-      await proveedorController.crearProveedor(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(409);
-      expect(res.json).toHaveBeenCalledWith({ message: 'Error: Ya existe un proveedor con el teléfono "12345678".' });
-    });
-
-    it('debería devolver error 400 si datos inválidos', async () => {
-      const req = { body: { nombre: '', telefono: 'abc', contacto: 'Contacto' } };
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-
-      await proveedorController.crearProveedor(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveProperty('message');
-    });
+    expect(res.statusCode).toBe(409);
+    expect(res.body.message).toMatch(/nombre/);
   });
 
-  describe('obtenerProveedores', () => {
-    it('debería devolver lista de proveedores', async () => {
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-      db.query.mockResolvedValueOnce({ rows: [{ nombre: 'Proveedor1' }] });
-
-      await proveedorController.obtenerProveedores({}, res);
-
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith([{ nombre: 'Proveedor1' }]);
+  it('debe devolver 409 si el teléfono ya existe', async () => {
+    db.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ nombre: 'Otro', telefono: '12345678' }]
     });
 
-    it('debería manejar error de BD', async () => {
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-      db.query.mockRejectedValueOnce(new Error('DB Error'));
-
-      await proveedorController.obtenerProveedores({}, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveProperty('message');
+    const res = await request(app).post('/api/proveedores').send({
+      nombre: 'Proveedor Nuevo',
+      telefono: '12345678'
     });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body.message).toMatch(/teléfono/);
   });
 
-  describe('actualizarProveedor', () => {
-    it('debería actualizar proveedor exitosamente', async () => {
-      const req = { body: { id_proveedor: 1, nombre: 'Nuevo' } };
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-
-      db.query
-        .mockResolvedValueOnce({ rowCount: 0, rows: [] }) // No hay duplicados
-        .mockResolvedValueOnce({ rowCount: 1, rows: [{ id_proveedor: 1, nombre: 'Viejo', telefono: '111', contacto: 'X' }] }) // Obtener actual
-        .mockResolvedValueOnce({ rowCount: 1, rows: [{ id_proveedor: 1, nombre: 'Nuevo', telefono: '111', contacto: 'X' }] }); // Update
-
-      await proveedorController.actualizarProveedor(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ id_proveedor: 1, nombre: 'Nuevo', telefono: '111', contacto: 'X' });
+  it('debe devolver 400 si los datos no cumplen validación Joi', async () => {
+    const res = await request(app).post('/api/proveedores').send({
+      nombre: '1234',
+      telefono: 'abc',
+      contacto: 'Contacto'
     });
 
-    it('debería devolver error 400 si falta id_proveedor', async () => {
-      const req = { body: { nombre: 'Nuevo' } };
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-
-      await proveedorController.actualizarProveedor(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveProperty('message');
-    });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toMatch(/El nombre/);
   });
 
-  describe('eliminarProveedor', () => {
-    it('debería eliminar proveedor exitosamente', async () => {
-      const req = { body: { id_proveedor: 1 } };
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-
-      db.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id_proveedor: 1 }] });
-
-      await proveedorController.eliminarProveedor(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({
-        message: 'Proveedor eliminado exitosamente.',
-        proveedor: { id_proveedor: 1 }
-      });
+  // --- OBTENER PROVEEDORES ---
+  it('debe devolver todos los proveedores', async () => {
+    db.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ id_proveedor: 1, nombre: 'Proveedor 1', telefono: '12345678', contacto: 'Contacto 1' }]
     });
 
-    it('debería devolver 404 si proveedor no existe', async () => {
-      const req = { body: { id_proveedor: 999 } };
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const res = await request(app).get('/api/proveedores');
+    expect(res.statusCode).toBe(200);
+    expect(res.body.length).toBe(1);
+  });
 
-      db.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+  it('debe manejar errores de DB al obtener proveedores', async () => {
+    db.query.mockRejectedValueOnce(new Error('DB error'));
 
-      await proveedorController.eliminarProveedor(req, res);
+    const res = await request(app).get('/api/proveedores');
+    expect(res.statusCode).toBe(500);
+  });
 
-      expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveProperty('message', 'Proveedor no encontrado.');
+  // --- OBTENER PROVEEDOR POR ID/NOMBRE ---
+  it('debe devolver un proveedor por id', async () => {
+    db.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ id_proveedor: 1, nombre: 'Proveedor 1', telefono: '12345678', contacto: 'Contacto 1' }]
     });
 
-    it('debería devolver 400 si falta id_proveedor', async () => {
-      const req = { body: {} };
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const res = await request(app).post('/api/proveedores/detail').send({ id_proveedor: 1 });
+    expect(res.statusCode).toBe(200);
+    expect(res.body[0].id_proveedor).toBe(1);
+  });
 
-      await proveedorController.eliminarProveedor(req, res);
+  it('debe devolver 404 si no encuentra el proveedor', async () => {
+    db.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveProperty('message', 'El campo id_proveedor es requerido.');
+    const res = await request(app).post('/api/proveedores/detail').send({ id_proveedor: 99 });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('debe devolver 400 si la búsqueda no pasa Joi', async () => {
+    const res = await request(app).post('/api/proveedores/detail').send({ id_proveedor: -1 });
+    expect(res.statusCode).toBe(400);
+  });
+
+  // --- ACTUALIZAR PROVEEDOR ---
+  it('debe actualizar un proveedor correctamente', async () => {
+    // 1. Verificar duplicados
+    db.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+    // 2. Obtener proveedor actual
+    db.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id_proveedor: 1, nombre: 'Proveedor 1', telefono: '11111111', contacto: 'Contacto1' }] });
+    // 3. Actualización
+    db.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id_proveedor: 1, nombre: 'Nuevo', telefono: '22222222', contacto: 'Nuevo' }] });
+
+    const res = await request(app).put('/api/proveedores/update').send({
+      id_proveedor: 1,
+      nombre: 'Nuevo',
+      telefono: '22222222',
+      contacto: 'Nuevo'
     });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.nombre).toBe('Nuevo');
+  });
+
+  it('debe devolver 409 si hay duplicado al actualizar', async () => {
+    db.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ id_proveedor: 2, nombre: 'Duplicado', telefono: '33333333' }]
+    });
+
+    const res = await request(app).put('/api/proveedores/update').send({
+      id_proveedor: 1,
+      nombre: 'Duplicado',
+      telefono: '33333333'
+    });
+
+    expect(res.statusCode).toBe(409);
+  });
+
+  it('debe devolver 404 si no encuentra el proveedor al actualizar', async () => {
+    db.query.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // duplicado
+    db.query.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // obtener actual
+
+    const res = await request(app).put('/api/proveedores/update').send({
+      id_proveedor: 99,
+      nombre: 'Nuevo'
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('debe devolver 400 si no se envía id_proveedor al actualizar', async () => {
+    const res = await request(app).put('/api/proveedores/update').send({
+      nombre: 'Nuevo'
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  // --- ELIMINAR PROVEEDOR ---
+  it('debe eliminar un proveedor correctamente', async () => {
+    db.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ id_proveedor: 1, nombre: 'Proveedor 1' }]
+    });
+
+    const res = await request(app).delete('/api/proveedores/delete').send({ id_proveedor: 1 });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.message).toMatch(/exitosamente/);
+  });
+
+  it('debe devolver 404 si no encuentra el proveedor al eliminar', async () => {
+    db.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+
+    const res = await request(app).delete('/api/proveedores/delete').send({ id_proveedor: 99 });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('debe devolver 400 si no se envía id_proveedor al eliminar', async () => {
+    const res = await request(app).delete('/api/proveedores/delete').send({});
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('debe manejar errores de DB al eliminar', async () => {
+    db.query.mockRejectedValueOnce(new Error('DB error'));
+
+    const res = await request(app).delete('/api/proveedores/delete').send({ id_proveedor: 1 });
+    expect(res.statusCode).toBe(500);
   });
 
 });
