@@ -44,6 +44,7 @@
     "collectCoverageFrom": [
       "src/controllers/**/*.js",
       "src/validators/**/*.js"
-    ]
+    ],
+    "coverageReporters": ["text", "lcov", "html"]
   }
 }
