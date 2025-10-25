@@ -253,7 +253,7 @@ exports.verifyCode = async (req, res) => {
 // --- Función para Cerrar Sesión (Logout) ---
 exports.logout = async (req, res) => {
     // El 'req.user.id' es añadido por un middleware de autenticación que verifica el JWT.
-    const userId = req.user.id; 
+    const userId = req.user?.id;
 
     if (!userId) {
         return res.status(400).json({ message: "No se pudo identificar al usuario desde el token." });
