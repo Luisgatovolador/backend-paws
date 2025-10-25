@@ -1,1 +1,10 @@
 node_modules/
+
+# .gitignore
+
+# Reporte de cobertura generado
+coverage/
+
+# Otras cosas para ignorar
+node_modules/
+.env
