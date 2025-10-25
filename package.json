@@ -34,5 +34,14 @@
   "devDependencies": {
     "jest": "^30.2.0",
     "nodemon": "^3.1.10"
+  },
+  "jest": {
+    "collectCoverage": true,
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "src/controllers//*.js",
+      "src/validators//*.js"
+    ]
   }
+
 }
