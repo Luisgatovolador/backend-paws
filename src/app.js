@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const expressLayouts = require('express-ejs-layouts');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
+const cors = require('cors');
 
 const usuariosRouter = require('./routes/usuarios');
 const authRouter = require('./routes/auth');
@@ -19,6 +20,7 @@ const clientesRouter = require('./routes/clientes'); // Añade esta línea
 
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 app.use((err, req, res, next) => {
