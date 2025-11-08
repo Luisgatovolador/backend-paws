@@ -239,6 +239,12 @@ exports.verifyCode = async (req, res) => {
         const method = codeIsValid ? 'email' : 'totp';
         res.status(200).json({
             token,
+            user: {
+        id: user.id,
+        nombre: user.nombre,  // o user.name si tu tabla lo tiene así
+        email: user.email,
+        rol: user.rol
+    },
             method,
             message: `Inicio de sesión exitoso con 2FA (${method}).`
         });
