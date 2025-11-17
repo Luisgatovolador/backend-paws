@@ -5,16 +5,25 @@ const QRCode = require('qrcode');
 const { crearUsuarioSchema, eliminarUsuarioSchema,actualizarUsuarioSchema,obtenerUsuarioSchema } = require('../validators/usuarioValidation');
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_APP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+
+const transporter = {
+    async sendMail({ to, subject, html, from }) {
+        try {
+            const data = await resend.emails.send({
+                from: from || process.env.EMAIL_FROM,
+                to,
+                subject,
+                html
+            });
+
+            console.log("Correo enviado correctamente:", data);
+            return data;
+        } catch (error) {
+            console.error("Error enviando correo:", error);
+            throw error;
+        }
+    }
+};
 
 // Crear usuario
 const crearUsuario = async (req, res) => {
