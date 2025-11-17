@@ -1,30 +1,11 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
 const db = require('../db/index'); 
 const authValidator = require('../validators/authValidators'); // Ruta del validador corregida
 const locationController = require('./locationController')
+const transporter = require('../config/transporter');
 
-// Configuración de Nodemailer usando las variables de entorno
 
-const transporter = {
-    async sendMail({ to, subject, html, from }) {
-        try {
-            const data = await resend.emails.send({
-                from: from || process.env.EMAIL_FROM,
-                to,
-                subject,
-                html
-            });
-
-            console.log("Correo enviado correctamente:", data);
-            return data;
-        } catch (error) {
-            console.error("Error enviando correo:", error);
-            throw error;
-        }
-    }
-};
 // --- Función de Recuperación de Cuenta (Solicitud) ---
 exports.forgotPassword = async (req, res) => {
     // Validar con Joi
