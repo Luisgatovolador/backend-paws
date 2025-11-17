@@ -8,7 +8,7 @@ servers:
 
 paths:
 
-  /usuarios:
+  /api/v1/usuarios/:
     post:
       summary: Obtiene un usuario por ID
       requestBody:
@@ -44,7 +44,7 @@ paths:
         '201':
           description: Usuario no encontrado
 
-  /usuarios/nuevo:
+  /api/v1/usuarios/nuevo:
     post:
       summary: Crea un nuevo usuario
       requestBody:
@@ -67,7 +67,7 @@ paths:
         '201':
           description: Usuario creado
 
-  /usuarios/update:
+  /api/v1/usuarios/update:
     put:
       summary: Actualiza un usuario por ID
       requestBody:
@@ -118,7 +118,7 @@ paths:
         '201':
           description: Usuario no encontrado
 
-  /usuarios/delete:
+  /api/v1/usuarios/{id}:
     delete:
       summary: Elimina un usuario enviando JSON con su ID
       requestBody:

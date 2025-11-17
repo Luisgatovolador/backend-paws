@@ -49,7 +49,7 @@ app.use(bodyParser.json());
 // });
 
 // Rutas
-app.use('/usuarios', usuariosRouter);
+app.use('/api/v1/usuarios', usuariosRouter);
 app.use('/api/v1',authRouter);
 app.use('/api/v1',locatioRouter);
 
