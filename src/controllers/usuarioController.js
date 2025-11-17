@@ -39,7 +39,7 @@ const crearUsuario = async (req, res) => {
 
     // Enviar correo
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: process.env.EMAIL_FROM,
       to: email,
       subject: 'Bienvenido a la plataforma',
       html: `
@@ -123,7 +123,7 @@ const eliminarUsuario = async (req, res) => {
     // Enviar correo
     try {
       await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: process.env.EMAIL_FROM,
         to: result.rows[0].email,
         subject: "Cuenta eliminada",
         html: `
@@ -174,7 +174,7 @@ const actualizarUsuario = async (req, res) => {
     // Enviar correo
     try {
       await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: process.env.EMAIL_FROM,
         to: email,
         subject: 'Cuenta actualizada',
         html: `
