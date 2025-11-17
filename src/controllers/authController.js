@@ -1,109 +1,125 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('../db/index'); 
-const authValidator = require('../validators/authValidators'); // Ruta del validador corregida
-const locationController = require('./locationController')
-const transporter = require('../config/transporter');
+const authValidator = require('../validators/authValidators');
+const locationController = require('./locationController');
+const transporter = require('../config/transporter'); // ← IMPORTACIÓN CORRECTA
+const speakeasy = require('speakeasy');
 
 
-// --- Función de Recuperación de Cuenta (Solicitud) ---
+// =============================
+//   FORGOT PASSWORD (SOLICITUD)
+// =============================
 exports.forgotPassword = async (req, res) => {
-    // Validar con Joi
     const { error } = authValidator.forgotPasswordSchema.validate(req.body);
     if (error) {
         return res.status(400).json({ message: error.details[0].message });
     }
-    
+
     const { email } = req.body;
+
     try {
         const result = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
         const user = result.rows[0];
 
         if (!user) {
-            return res.status(404).json({ message: 'Si el correo existe, se ha enviado un enlace para restablecer la contraseña.' });
+            return res.status(404).json({
+                message: 'Si el correo existe, se ha enviado un enlace para restablecer la contraseña.'
+            });
         }
 
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        // Crear token de recuperación
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+            expiresIn: '1h'
+        });
+
         const expires = new Date(Date.now() + 3600000);
 
-        await db.query('UPDATE usuarios SET reset_password_token = $1, reset_password_expires = $2 WHERE id = $3', 
-            [token, expires, user.id]);
+        await db.query(
+            'UPDATE usuarios SET reset_password_token = $1, reset_password_expires = $2 WHERE id = $3',
+            [token, expires, user.id]
+        );
 
-        const mailOptions = {
+        // Email principal con enlace
+        await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
             subject: 'Restablecimiento de Contraseña',
-            html: `<p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar: <a href="http://localhost:3000/reset-password/${token}">Restablecer Contraseña</a></p>`,
-        };
+            html: `
+                <p>Haz solicitado restablecer tu contraseña.</p>
+                <p>Enlace: <a href="http://localhost:3000/reset-password/${token}">
+                Restablecer Contraseña</a></p>
+            `
+        });
 
-        await transporter.sendMail(mailOptions);
+        // Email de notificación
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: 'Solicitud de restablecimiento',
+            html: `
+                <p>Si no solicitaste esto, ignora este mensaje.</p>
+            `
+        });
 
-        const mailOptionsNotify = {
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: 'Solicitud de restablecimiento de contraseña',
-        html: `
-       
-        <p>Has solicitado restablecer tu contraseña. Si no fuiste tú, ignora este mensaje.</p>
-        <p>Si realizaste la solicitud, revisa el enlace de recuperación enviado.</p>
-        `,
-        };
-        await transporter.sendMail(mailOptionsNotify);
-
-        // Asigna userId y actionName para el registro de ubicación.
+        // Registro de ubicación
         req.body.userId = user.id;
-        req.body.actionName = 'forgot_password_request'; 
-        
-        // Llama a la función para guardar la ubicación.
+        req.body.actionName = 'forgot_password_request';
         locationController.saveLocationByIp(req, {});
 
-        res.status(200).json({ message: 'Enlace de restablecimiento de contraseña enviado a tu correo.' });
+        res.status(200).json({
+            message: 'Enlace de restablecimiento enviado a tu correo.'
+        });
+
     } catch (error) {
         console.error('Error en forgotPassword:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
 
-// --- Función de Recuperación de Cuenta (Actualización) ---
+
+// =============================
+//   RESET PASSWORD
+// =============================
 exports.resetPassword = async (req, res) => {
-    // Validar con Joi
     const { error } = authValidator.resetPasswordSchema.validate(req.body);
-    if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-    }
-    
+    if (error) return res.status(400).json({ message: error.details[0].message });
+
     const { token } = req.params;
     const { newPassword } = req.body;
 
     try {
-        const result = await db.query('SELECT * FROM usuarios WHERE reset_password_token = $1 AND reset_password_expires > NOW()', [token]);
-        
+        const result = await db.query(
+            'SELECT * FROM usuarios WHERE reset_password_token = $1 AND reset_password_expires > NOW()',
+            [token]
+        );
+
         if (result.rowCount === 0) {
             return res.status(400).json({ message: 'El token es inválido o ha expirado.' });
         }
-        
+
         const user = result.rows[0];
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-        await db.query('UPDATE usuarios SET password = $1, reset_password_token = NULL, reset_password_expires = NULL WHERE id = $2', 
-            [hashedPassword, user.id]);
+        await db.query(
+            'UPDATE usuarios SET password = $1, reset_password_token = NULL, reset_password_expires = NULL WHERE id = $2',
+            [hashedPassword, user.id]
+        );
 
-        // Asigna userId y actionName para el registro de ubicación.
+        // Registro de ubicación
         req.body.userId = user.id;
         req.body.actionName = 'password_reset';
-        
-        // Llama a la función para guardar la ubicación.
         locationController.saveLocationByIp(req, {});
-        const mailOptionsNotify = {
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: 'Contraseña actualizada correctamente',
-        html: `
-            <p>Tu contraseña ha sido cambiada correctamente.</p>
-            <p>Si no realizaste este cambio, por favor contacta al soporte de inmediato.</p>
-        `,
-        };
-        await transporter.sendMail(mailOptionsNotify);
+
+        // Email confirmación
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: 'Contraseña actualizada',
+            html: `
+                <p>Tu contraseña ha sido actualizada correctamente.</p>
+            `
+        });
 
         res.status(200).json({ message: 'Contraseña actualizada correctamente.' });
 
@@ -112,10 +128,11 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
-//login 
-const speakeasy = require('speakeasy');
 
-// --- Función de Login (con 2FA híbrido) ---
+
+// =============================
+//   LOGIN con 2FA EMAIL/TOTP
+// =============================
 exports.login = async (req, res) => {
     const { email, password } = req.body;
 
@@ -127,45 +144,49 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
 
-        // Código de verificación por correo (válido solo si hay internet)
+        // Código email 2FA
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const expires = new Date(Date.now() + 600000); // 10 minutos
+        const expires = new Date(Date.now() + 600000);
 
         await db.query(
             'UPDATE usuarios SET verification_code = $1, verification_code_expires = $2 WHERE id = $3',
             [verificationCode, expires, user.id]
         );
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: 'Código de verificación de inicio de sesión',
-            html: `<p>Tu código de verificación es: <strong>${verificationCode}</strong></p><p>Este código expirará en 10 minutos.</p>`,
-        };
-
+        // Intentar enviar correo
         try {
-            await transporter.sendMail(mailOptions);
+            await transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: user.email,
+                subject: 'Código de verificación',
+                html: `
+                    <p>Tu código es:</p>
+                    <h2>${verificationCode}</h2>
+                    <p>Expira en 10 minutos.</p>
+                `
+            });
+
             res.status(200).json({
-                message: 'Se ha enviado un código de verificación a tu correo.',
+                message: 'Código enviado a tu correo.',
                 needsVerification: true,
                 userId: user.id,
                 method: 'email'
             });
+
         } catch (mailError) {
-            console.warn("Fallo envío de correo, usar TOTP:", mailError.code);
+            console.warn("No se envió correo, usar TOTP:", mailError.code);
+
             res.status(200).json({
-                message: 'No se pudo enviar el correo. Usa tu aplicación de autenticación (TOTP).',
+                message: 'No se pudo enviar correo. Usa tu app 2FA (TOTP).',
                 needsVerification: true,
                 userId: user.id,
                 method: 'totp'
             });
         }
 
-        // Asigna userId y actionName para el registro de ubicación.
+        // Registro de ubicación
         req.body.userId = user.id;
-        req.body.actionName = 'password_reset';
-        
-        // Llama a la función para guardar la ubicación.
+        req.body.actionName = 'login';
         locationController.saveLocationByIp(req, {});
 
     } catch (error) {
@@ -175,7 +196,9 @@ exports.login = async (req, res) => {
 };
 
 
-// --- Función de Verificación del Código 2FA ---
+// =============================
+//   VERIFICAR CÓDIGO 2FA
+// =============================
 exports.verifyCode = async (req, res) => {
     const { error } = authValidator.verifyCodeSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
@@ -190,11 +213,12 @@ exports.verifyCode = async (req, res) => {
 
         const now = new Date();
 
-        // Verificar código de correo
+        // Verificación por correo
         const codeIsValid =
-            user.verification_code === code && user.verification_code_expires > now;
+            user.verification_code === code &&
+            user.verification_code_expires > now;
 
-        // Verificar TOTP
+        // Verificación TOTP
         const totpIsValid = user.twofa_secret
             ? speakeasy.totp.verify({
                   secret: user.twofa_secret,
@@ -208,16 +232,16 @@ exports.verifyCode = async (req, res) => {
             return res.status(401).json({ message: 'Código inválido o expirado.' });
         }
 
-
-        // AQUÍ: Actualiza la base de datos para marcar al usuario como logueado.
-        await db.query('UPDATE usuarios SET is_logged_in = TRUE WHERE id = $1', [userId]);
-
-     
+        await db.query('UPDATE usuarios SET is_logged_in = TRUE WHERE id = $1', [
+            userId
+        ]);
 
         // Generar JWT
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+            expiresIn: '1h'
+        });
 
-        // Limpiar el código de correo si se usó
+        // Borrar el código si se usó el de correo
         if (codeIsValid) {
             await db.query(
                 'UPDATE usuarios SET verification_code = NULL, verification_code_expires = NULL WHERE id = $1',
@@ -225,17 +249,16 @@ exports.verifyCode = async (req, res) => {
             );
         }
 
-        const method = codeIsValid ? 'email' : 'totp';
         res.status(200).json({
             token,
             user: {
-        id: user.id,
-        nombre: user.nombre,  // o user.name si tu tabla lo tiene así
-        email: user.email,
-        rol: user.rol
-    },
-            method,
-            message: `Inicio de sesión exitoso con 2FA (${method}).`
+                id: user.id,
+                nombre: user.nombre,
+                email: user.email,
+                rol: user.rol
+            },
+            method: codeIsValid ? 'email' : 'totp',
+            message: 'Inicio de sesión exitoso con 2FA.'
         });
 
     } catch (error) {
@@ -245,20 +268,25 @@ exports.verifyCode = async (req, res) => {
 };
 
 
-// --- Función para Cerrar Sesión (Logout) ---
+// =============================
+//   LOGOUT
+// =============================
 exports.logout = async (req, res) => {
-    // El 'req.user.id' es añadido por un middleware de autenticación que verifica el JWT.
     const userId = req.user?.id;
 
     if (!userId) {
-        return res.status(400).json({ message: "No se pudo identificar al usuario desde el token." });
+        return res.status(400).json({
+            message: "No se pudo identificar al usuario desde el token."
+        });
     }
 
     try {
-        // Actualiza la base de datos para marcar al usuario como NO logueado.
-        await db.query('UPDATE usuarios SET is_logged_in = FALSE WHERE id = $1', [userId]);
+        await db.query('UPDATE usuarios SET is_logged_in = FALSE WHERE id = $1', [
+            userId
+        ]);
 
         res.status(200).json({ message: 'Sesión cerrada exitosamente.' });
+
     } catch (error) {
         console.error('Error en logout:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });

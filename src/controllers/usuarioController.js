@@ -2,96 +2,79 @@ const pool = require('../db');
 const bcrypt = require('bcrypt');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
-const { crearUsuarioSchema, eliminarUsuarioSchema,actualizarUsuarioSchema,obtenerUsuarioSchema } = require('../validators/usuarioValidation');
-const nodemailer = require('nodemailer');
+const { 
+  crearUsuarioSchema, 
+  eliminarUsuarioSchema,
+  actualizarUsuarioSchema,
+  obtenerUsuarioSchema 
+} = require('../validators/usuarioValidation');
+const transporter = require('../config/transporter');  // ← ESTA ES LA IMPORTACIÓN CORRECTA
 
-
-const transporter = {
-    async sendMail({ to, subject, html, from }) {
-        try {
-            const data = await resend.emails.send({
-                from: from || process.env.EMAIL_FROM,
-                to,
-                subject,
-                html
-            });
-
-            console.log("Correo enviado correctamente:", data);
-            return data;
-        } catch (error) {
-            console.error("Error enviando correo:", error);
-            throw error;
-        }
-    }
-};
 
 // Crear usuario
 const crearUsuario = async (req, res) => {
   try {
-    // FALTABA ESTA PARTE: Validar los datos de entrada
     const { error, value } = crearUsuarioSchema.validate(req.body, { convert: false });
     if (error) {
       return res.status(400).json({ message: error.details[0].message });
     }
 
-    // Ahora sí puedes usar value
     const { nombre, email, password, rol } = value;
 
-    // 1️ Encriptar contraseña
+    // Hash contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 2️ Generar secreto único para 2FA
+    // Secreto 2FA
     const secret = speakeasy.generateSecret({ length: 20 });
     const secretBase32 = secret.base32;
 
-    // 3️ Guardar usuario en la base de datos
+    // Insertar usuario
     const result = await pool.query(
       'INSERT INTO usuarios (nombre, email, password, rol, twofa_secret) VALUES ($1, $2, $3, $4, $5) RETURNING id, nombre, email, rol',
       [nombre, email, hashedPassword, rol, secretBase32]
     );
 
-    // 4️ Generar QR para el 2FA
+    // QR 2FA
     const qrUrl = await QRCode.toDataURL(secret.otpauth_url);
-    
-    // 5️ Enviar correo de notificación
-    const mailOptions = {
+
+    // Enviar correo
+    await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: 'Bienvenido a la plataforma',
       html: `
         <p>Hola ${nombre},</p>
-        <p>Tu cuenta se ha creado exitosamente con el rol <strong>${rol}</strong>.</p>
-        <p>Para mayor seguridad, hemos configurado autenticación de doble factor (2FA).</p>
+        <p>Tu cuenta se creó exitosamente con el rol <strong>${rol}</strong>.</p>
+        <p>Se configuró autenticación de doble factor (2FA) para mayor seguridad.</p>
       `,
-    };
-    await transporter.sendMail(mailOptions);
-
-    res.status(201).json({ 
-      mensaje: 'Usuario creado con éxito.', 
-      usuario: result.rows[0], 
-      qrUrl 
     });
+
+    res.status(201).json({
+      mensaje: 'Usuario creado con éxito.',
+      usuario: result.rows[0],
+      qrUrl
+    });
+
   } catch (err) {
     res.status(500).json({ message: 'Error al crear usuario', error: err.message });
   }
 };
+
+
 // Obtener usuarios
 const obtenerUsuarios = async (req, res) => {
   try {
-   
     const { error, value } = obtenerUsuarioSchema.validate(req.body,{ convert: false });
     if (error) {
       return res.status(400).json({ message: error.details[0].message });
     }
 
-    const { id } = value; 
+    const { id } = value;
     let result;
 
     if (!id) {
-     
       result = await pool.query('SELECT id, nombre, email, rol FROM usuarios ORDER BY id ASC');
     } else {
-     
       result = await pool.query(
         'SELECT id, nombre, email, rol FROM usuarios WHERE id = $1',
         [id]
@@ -103,6 +86,7 @@ const obtenerUsuarios = async (req, res) => {
     }
 
     res.json(result.rows);
+
   } catch (err) {
     res.status(500).json({
       message: 'Error al obtener los usuarios.',
@@ -115,9 +99,8 @@ const obtenerUsuarios = async (req, res) => {
 // Eliminar usuario
 const eliminarUsuario = async (req, res) => {
   try {
-    const { id } = req.body; 
+    const { id } = req.body;
 
-    // Validación manual de ID
     if (!Number.isInteger(id) || id <= 0) {
       return res.json({
         success: false,
@@ -137,23 +120,19 @@ const eliminarUsuario = async (req, res) => {
       });
     }
 
-    // Enviar correo de notificación
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: result.rows[0].email,
-      subject: "Cuenta eliminada",
-      html: `
-        <p>Hola ${result.rows[0].nombre},</p>
-        <p>Tu cuenta ha sido eliminada del sistema.</p>
-        <p>Si no solicitaste esta acción, por favor contacta a soporte de inmediato.</p>
-      `,
-    };
-
+    // Enviar correo
     try {
-      await transporter.sendMail(mailOptions);
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: result.rows[0].email,
+        subject: "Cuenta eliminada",
+        html: `
+          <p>Hola ${result.rows[0].nombre},</p>
+          <p>Tu cuenta ha sido eliminada del sistema.</p>
+        `,
+      });
     } catch (emailErr) {
       console.error("Error enviando correo de eliminación:", emailErr);
-      // No rompemos el flujo si falla el correo
     }
 
     return res.json({
@@ -161,6 +140,7 @@ const eliminarUsuario = async (req, res) => {
       message: "Usuario eliminado con éxito.",
       usuario: result.rows[0]
     });
+
   } catch (err) {
     console.error("Error al eliminar usuario:", err);
     return res.json({
@@ -168,8 +148,11 @@ const eliminarUsuario = async (req, res) => {
       message: "Error interno al eliminar el usuario."
     });
   }
+};
 
-};const actualizarUsuario = async (req, res) => {
+
+// Actualizar usuario
+const actualizarUsuario = async (req, res) => {
   try {
     const { error, value } = actualizarUsuarioSchema.validate(req.body);
 
@@ -179,7 +162,6 @@ const eliminarUsuario = async (req, res) => {
 
     const { id, nombre, email, rol } = value;
 
-    // Actualizar usuario
     const result = await pool.query(
       'UPDATE usuarios SET nombre = $1, email = $2, rol = $3 WHERE id = $4 RETURNING id, nombre, email, rol',
       [nombre, email, rol, id]
@@ -189,28 +171,19 @@ const eliminarUsuario = async (req, res) => {
       return res.json({ success: false, message: 'Usuario no encontrado.' });
     }
 
-    // Enviar correo de notificación de actualización
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Cuenta actualizada',
-      html: `
-        <p>Hola ${nombre},</p>
-        <p>Tu información de usuario ha sido actualizada con éxito.</p>
-        <ul>
-          <li>Nombre: ${nombre}</li>
-          <li>Email: ${email}</li>
-          <li>Rol: ${rol}</li>
-        </ul>
-        <p>Si no solicitaste esta actualización, por favor contacta al soporte inmediatamente.</p>
-      `,
-    };
-
+    // Enviar correo
     try {
-      await transporter.sendMail(mailOptions);
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Cuenta actualizada',
+        html: `
+          <p>Hola ${nombre},</p>
+          <p>Tu información ha sido actualizada con éxito.</p>
+        `,
+      });
     } catch (emailErr) {
       console.error('Error enviando correo de actualización:', emailErr);
-      // No bloqueamos la respuesta aunque falle el correo
     }
 
     return res.json({
@@ -224,7 +197,6 @@ const eliminarUsuario = async (req, res) => {
     return res.json({ success: false, message: 'Error interno al actualizar usuario.' });
   }
 };
-
 
 
 module.exports = {
