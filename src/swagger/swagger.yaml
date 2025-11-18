@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: API para gestionar usuarios con login y 2FA offline
 servers:
-- url: https://backend-paws.onrender.com
+- url: http://localhost:3000/
 
 paths:
 
