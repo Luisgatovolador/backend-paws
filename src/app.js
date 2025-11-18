@@ -40,7 +40,8 @@ app.use(
 );
 
 // Necesario para preflight
-app.options("*", cors());
+app.options(cors());
+
 
 // =========================
 //   EXPRESS
