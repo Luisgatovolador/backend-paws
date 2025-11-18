@@ -30,10 +30,10 @@ exports.forgotPassword = async (req, res) => {
 
         // Crear token de recuperación
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-            expiresIn: '1h'
+            expiresIn: '20h'
         });
 
-        const expires = new Date(Date.now() + 3600000);
+        const expires = new Date(Date.now() + 3600000*20);
 
         await db.query(
             'UPDATE usuarios SET reset_password_token = $1, reset_password_expires = $2 WHERE id = $3',
@@ -47,7 +47,7 @@ exports.forgotPassword = async (req, res) => {
             subject: 'Restablecimiento de Contraseña',
             html: `
                 <p>Haz solicitado restablecer tu contraseña.</p>
-                <p>Enlace: <a href="http://localhost:3000/reset-password/${token}">
+                <p>Enlace: <a href="${process.env.URL}/reset-password/${token}">
                 Restablecer Contraseña</a></p>
             `
         });
@@ -82,9 +82,9 @@ exports.forgotPassword = async (req, res) => {
 //   RESET PASSWORD
 // =============================
 exports.resetPassword = async (req, res) => {
+    
     const { error } = authValidator.resetPasswordSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
-
     const { token } = req.params;
     const { newPassword } = req.body;
 
