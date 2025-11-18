@@ -1,32 +1,53 @@
 // src/config/transporter.js
+const nodemailer = require("nodemailer");
+const { google } = require("googleapis");
 
-const { Resend } = require('resend');
+// OAuth2 client con tus credenciales de Gmail
+const oAuth2Client = new google.auth.OAuth2(
+  process.env.GMAIL_CLIENT_ID,       // Client ID de Google Cloud
+  process.env.GMAIL_CLIENT_SECRET,   // Client Secret
+  "https://developers.google.com/oauthplayground" // Redirect URI
+);
 
-// Crear cliente Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+oAuth2Client.setCredentials({
+  refresh_token: process.env.GMAIL_REFRESH_TOKEN, // Refresh token obtenido
+});
 
-/**
- * Transporter compatible con Nodemailer
- * Tiene el método sendMail({ from, to, subject, html })
- * igual que Nodemailer, así NO cambias nada en tus controladores.
- */
-const transporter = {
-    async sendMail({ from, to, subject, html }) {
-        try {
-            const data = await resend.emails.send({
-                from: from || process.env.EMAIL_FROM,  // si no mandas from, usa el default
-                to,
-                subject,
-                html
-            });
+// Crear transporter Gmail
+async function createTransporter() {
+  const accessToken = await oAuth2Client.getAccessToken();
 
-            console.log("Correo enviado correctamente:", data);
-            return data;
-        } catch (error) {
-            console.error("Error enviando correo:", error);
-            throw error;
-        }
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      type: "OAuth2",
+      user: process.env.EMAIL_USER,        // correo que envía
+      clientId: process.env.GMAIL_CLIENT_ID,
+      clientSecret: process.env.GMAIL_CLIENT_SECRET,
+      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+      accessToken: accessToken.token,
+    },
+  });
+}
+
+// Función de envío de correo usando Gmail OAuth2
+module.exports = {
+  async sendMail({ from, to, subject, html }) {
+    try {
+      const transporter = await createTransporter();
+
+      const info = await transporter.sendMail({
+        from: from || process.env.EMAIL_USER,
+        to,
+        subject,
+        html,
+      });
+
+      console.log("Correo enviado:", info.messageId);
+      return info;
+    } catch (error) {
+      console.error("Error enviando correo:", error);
+      throw error;
     }
+  },
 };
-
-module.exports = transporter;

@@ -42,7 +42,7 @@ exports.forgotPassword = async (req, res) => {
 
         // Email principal con enlace
         await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
+            from: process.env.EMAIL_USER,
             to: email,
             subject: 'Restablecimiento de Contraseña',
             html: `
@@ -54,7 +54,7 @@ exports.forgotPassword = async (req, res) => {
 
         // Email de notificación
         await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
+            from: process.env.EMAIL_USER,
             to: user.email,
             subject: 'Solicitud de restablecimiento',
             html: `
@@ -113,7 +113,7 @@ exports.resetPassword = async (req, res) => {
 
         // Email confirmación
         await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
+            from: process.env.EMAIL_USER,
             to: user.email,
             subject: 'Contraseña actualizada',
             html: `
@@ -156,7 +156,7 @@ exports.login = async (req, res) => {
         // Intentar enviar correo
         try {
             await transporter.sendMail({
-                from: process.env.EMAIL_FROM,
+                from: process.env.EMAIL_USER,
                 to: user.email,
                 subject: 'Código de verificación',
                 html: `

@@ -1,18 +1,14 @@
 const nodemailer = require("nodemailer");
 const { google } = require("googleapis");
 
-// OAuth2 client
 const oAuth2Client = new google.auth.OAuth2(
   process.env.GMAIL_CLIENT_ID,
   process.env.GMAIL_CLIENT_SECRET,
   "https://developers.google.com/oauthplayground"
 );
 
-oAuth2Client.setCredentials({
-  refresh_token: process.env.GMAIL_REFRESH_TOKEN,
-});
+oAuth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
 
-// Transporter Gmail OAuth2
 async function createTransporter() {
   const accessToken = await oAuth2Client.getAccessToken();
 
@@ -29,24 +25,9 @@ async function createTransporter() {
   });
 }
 
-// Función igual que Resend (compatibilidad total)
 module.exports = {
   async sendMail({ from, to, subject, html }) {
-    try {
-      const transporter = await createTransporter();
-
-      const info = await transporter.sendMail({
-        from: from || process.env.EMAIL_USER,
-        to,
-        subject,
-        html,
-      });
-
-      console.log("Correo enviado:", info.messageId);
-      return info;
-    } catch (error) {
-      console.error("Error enviando correo:", error);
-      throw error;
-    }
+    const transporter = await createTransporter();
+    return transporter.sendMail({ from, to, subject, html });
   },
 };
