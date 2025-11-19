@@ -12,7 +12,7 @@ exports.getAllProducts = async (req, res) => {
     try {
         const query = `
             SELECT id_producto, codigo, nombre, descripcion, categoria, unidad, 
-                   stock_minimo, stock_actual, created_at, updated_at 
+                   stock_minimo, stock_actual, created_at, updated_at , activo
             FROM products ORDER BY id_producto ASC;
         `;
         const result = await db.query(query); // Ya no se revisa req.query
